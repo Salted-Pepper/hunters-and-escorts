@@ -45,7 +45,7 @@ class Interface(tk.Tk):
         self.simulation_logs = []
         self.simulation_logs_labels = []
 
-        self.r_o_e_current_levels = zones.coalition_maxima.copy()
+        self.r_o_e_current_levels = zones.coalition_engagement_rules.copy()
 
         self.zone_assignment_hunter = zones.zone_assignment_hunter.copy()
         self.zone_assignment_coalition = zones.zone_assignment_coalition.copy()
@@ -345,7 +345,7 @@ class Interface(tk.Tk):
         self.debug_mode_checkbox.state(['selected'])
 
         self.receptor_label = ttk.Label(tab, text="Show Receptors")
-        self.receptor_option = ttk.Combobox(tab, values=['Sea State', 'Coalition Pheromones',
+        self.receptor_option = ttk.Combobox(tab, values=['Sea States', 'Coalition Pheromones',
                                                          'China Pheromones', 'None'])
         self.receptor_option.bind("<<ComboboxSelected>>", self.set_receptor_option)
 
@@ -409,27 +409,25 @@ class Interface(tk.Tk):
             level = int(level)
 
         self.selected_esc_level_var.set(f"Escalation Level: {level}")
-        escalation_rule_set = zones.coalition_maxima
+        coalition_engagement_rules = zones.coalition_engagement_rules
 
-        for j, escort_type in enumerate([constants.COALITION_TW_ESCORT,
-                                         constants.COALITION_JP_ESCORT,
-                                         constants.COALITION_US_ESCORT]):
+        for j, country in enumerate([constants.TAIWAN, constants.JAPAN, constants.USA]):
             for i, zone in enumerate(zones.ZONES):
-                min_value = escalation_rule_set[level][escort_type][zone.name]
-                current_value = self.r_o_e_current_levels[level][escort_type][zone.name]
+                min_value = coalition_engagement_rules[level][country][zone.name]
+                current_value = self.r_o_e_current_levels[level][country][zone.name]
                 valid_values = [value for value in [1, 2, 3, 4] if value >= min_value]
                 combobox = ttk.Combobox(self.r_o_e_tab, values=valid_values, width=2)
                 combobox.place(x=column_start + (j + 1.2) * column_width, y=row_start + (i + 1) * row_height)
 
                 combobox.set(current_value)
                 combobox.bind("<<ComboboxSelected>>",
-                              lambda x, lvl=level, esc_type=escort_type, zn=zone.name, val=combobox.get():
-                              self.set_r_o_e(x, lvl, esc_type, zn, val))
+                              lambda x, lvl=level, c=country, zn=zone.name, val=combobox.get():
+                              self.set_r_o_e(x, lvl, c, zn, val))
                 self.level_selectors.append(combobox)
 
-    def set_r_o_e(self, event, level, escort_type, zone, value):
-        print(f"Set {level}-{escort_type}-{zone} to {value}")
-        self.r_o_e_current_levels[level][escort_type][zone.name] = value
+    def set_r_o_e(self, event, level, country, zone, value):
+        print(f"Set {level}-{country}-{zone} to {value}")
+        self.r_o_e_current_levels[level][country][zone.name] = value
 
     def create_assignment_tab(self) -> None:
         tab = self.assignment_tab

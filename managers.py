@@ -80,7 +80,7 @@ class AgentManager:
         Main managing tool to assign agents to tasks.
         :return:
         """
-        # TODO: Redo this based on assigned tasks and quantities.
+        # TODO: Redo this based on assigned tasks and quantities. (Probably just activate agents within class)
         #  Needs:
         # 0. Do any custom actions
         # 1. Manage the base
@@ -118,7 +118,6 @@ class AgentManager:
 
         if self.team == constants.TEAM_CHINA:
             # Select agent to send out
-            # TODO: Base this on agent type availability?
             agent = random.choice(self.inactive_agents)
 
             # See assignment of zones for agent type
@@ -126,6 +125,15 @@ class AgentManager:
             zone_probabilities = zone_assignment[agent.service]
             zone = np.random.choice(list(zone_probabilities.keys()), p=list(zone_probabilities.values()))
             return "start_patrol", zone
+
+        elif self.team == constants.TEAM_COALITION:
+            agent = random.choice(self.inactive_agents)
+
+            # See assignment of zone for
+            # TODO: Assign coalition units based on ccs.coalition_engagement_rules
+
+        else:
+            raise ValueError(f"Invalid Team {self.team}")
 
 
 class OTHManager(AgentManager):

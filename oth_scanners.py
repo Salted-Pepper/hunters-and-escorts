@@ -91,7 +91,7 @@ class OTH:
 
     def call_actions(self):
         """
-        Queues actions for located agents.
+        Queues actions for located agents that are executed once the communication delay has passed.
         Tasks are in the format of a dict
         :return:
         """
