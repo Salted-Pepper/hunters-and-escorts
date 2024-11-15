@@ -383,7 +383,7 @@ class Interface(tk.Tk):
         column_width = 120
 
         # Create basic labels
-        for index, zone in enumerate(zones.ZONES):
+        for index, zone in enumerate(zones.ZONES_DISPLAY_ORDER):
             label = ttk.Label(tab, text=zone.name)
             label.place(x=column_start, y=row_start + row_height * (index + 1))
 
@@ -412,7 +412,7 @@ class Interface(tk.Tk):
         coalition_engagement_rules = zones.coalition_engagement_rules
 
         for j, country in enumerate([constants.TAIWAN, constants.JAPAN, constants.USA]):
-            for i, zone in enumerate(zones.ZONES):
+            for i, zone in enumerate(zones.ZONES_DISPLAY_ORDER):
                 min_value = coalition_engagement_rules[level][country][zone.name]
                 current_value = self.r_o_e_current_levels[level][country][zone.name]
                 valid_values = [value for value in [1, 2, 3, 4] if value >= min_value]
@@ -435,15 +435,17 @@ class Interface(tk.Tk):
         tab_main_frame.pack(fill=tk.BOTH, expand=1)
 
         tab_canvas = tk.Canvas(tab_main_frame)
-        tab_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
 
+        x_scrollbar = tk.Scrollbar(tab_main_frame, orient=tk.HORIZONTAL, command=tab_canvas.xview)
+        x_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
         y_scrollbar = tk.Scrollbar(tab_main_frame, orient=tk.VERTICAL, command=tab_canvas.yview)
         y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        tab_canvas.configure(yscrollcommand=y_scrollbar.set)
+        tab_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+        tab_canvas.configure(xscrollcommand=x_scrollbar.set, yscrollcommand=y_scrollbar.set)
         tab_canvas.bind('<Configure>', lambda x: tab_canvas.configure(scrollregion=tab_canvas.bbox("all")))
 
-        tab_frame = tk.Frame(tab_canvas, width=1000, height=1000)
+        tab_frame = tk.Frame(tab_canvas, width=1200, height=1000)
 
         target_header = ttk.Label(tab_frame, text="Assignment Tab", font=('Helvetica', 16, 'bold'))
 
@@ -462,17 +464,17 @@ class Interface(tk.Tk):
         column_width = 120
 
         # Creating labeling
-        for index, zone in enumerate(zones.ZONES):
+        for index, zone in enumerate(zones.ZONES_DISPLAY_ORDER):
             zone_label = ttk.Label(tab_frame, text=zone.name)
             zone_label.place(x=column_start, y=row_start + (index + 1) * row_height)
-        end_of_zone_height = row_start + (len(zones.ZONES) + 1) * row_height
+        end_of_zone_height = row_start + (len(zones.ZONES_DISPLAY_ORDER) + 1) * row_height
 
         for index, hunter in enumerate(constants.HUNTER_TYPES):
             hunter_label = ttk.Label(tab_frame, text=hunter, width=column_width)
             hunter_label.place(x=column_start + (index + 1) * column_width, y=row_start)
 
         # Creating selection tool
-        for i, zone in enumerate(zones.ZONES):
+        for i, zone in enumerate(zones.ZONES_DISPLAY_ORDER):
             for j, hunter in enumerate(constants.HUNTER_TYPES):
                 scaler = ttk.Scale(tab_frame, from_=0, to=100, value=0, length=40,
                                    command=lambda x, z=zone, h=hunter:
@@ -486,7 +488,7 @@ class Interface(tk.Tk):
         coalition_header.place(x=column_start, y=end_of_zone_height + row_height)
         row_start = end_of_zone_height + 2 * row_height
 
-        for index, zone in enumerate(zones.ZONES):
+        for index, zone in enumerate(zones.ZONES_DISPLAY_ORDER):
             zone_label = ttk.Label(tab_frame, text=zone.name)
             zone_label.place(x=column_start, y=row_start + (index + 1) * row_height)
 
@@ -494,7 +496,7 @@ class Interface(tk.Tk):
             agent_label = ttk.Label(tab_frame, text=agent)
             agent_label.place(x=column_start + (index + 1) * column_width, y=row_start)
 
-        for i, zone in enumerate(zones.ZONES):
+        for i, zone in enumerate(zones.ZONES_DISPLAY_ORDER):
             for j, agent in enumerate(constants.COALITION_ACTIVE_TYPES):
                 scaler = ttk.Scale(tab_frame, from_=0, to=100, value=0, length=40,
                                    command=lambda x, z=zone, a=agent:

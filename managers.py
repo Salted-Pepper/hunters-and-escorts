@@ -269,7 +269,7 @@ class UAVManager(AgentManager):
         constants.interface.update_statistics_and_logs(event_code=None,
                                                        log=f"UAV Detected {target}, sending {agent_to_respond}")
 
-    def find_uav_able_to_attack(self, target: Agent) -> UAV:
+    def find_uav_able_to_attack(self, target: Agent) -> UAV | None:
         close_active_agents = [agent for agent in self.active_agents if
                                agent.able_to_attack and not agent.is_returning and agent.surf_ammo_current > 0]
         # close_active_agents = sorted(close_active_agents,

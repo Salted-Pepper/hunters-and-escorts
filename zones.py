@@ -133,7 +133,8 @@ class Zone:
         while not valid_point:
             attempts += 1
             if attempts >= constants.ITERATION_LIMIT:
-                raise TimeoutError(f"Unable to sample patrol location in {self.name} - {[obs.name for obs in obstacles]}")
+                raise TimeoutError(
+                    f"Unable to sample patrol location in {self.name} - {[obs.name for obs in obstacles]}")
             sample_point = Point(x=random.uniform(self.polygon.min_x, self.polygon.max_x),
                                  y=random.uniform(self.polygon.min_y,
                                                   max(self.polygon.min_y + 1, min(40, self.polygon.max_y)))
@@ -157,50 +158,131 @@ ZONE_I = Zone(name="I - In CN 10 DASH", polygon=Polygon(ccs.I_INSIDE_10_DASH))
 ZONE_L = Zone(name="L - Inside Median Line", polygon=Polygon(ccs.L_INSIDE_MEDIAN_LINE))
 # Sort zones from top zones to lower zones
 ZONES = [ZONE_C, ZONE_B, ZONE_E, ZONE_D, ZONE_G, ZONE_F, ZONE_I, ZONE_L, ZONE_H, ZONE_A]
+ZONES_DISPLAY_ORDER = [ZONE_A, ZONE_B, ZONE_C, ZONE_D, ZONE_E, ZONE_F, ZONE_G, ZONE_H, ZONE_I, ZONE_L]
 HUNTER_ILLEGAL_ZONES = JAPAN_AND_ISLANDS + [ZONE_B.polygon, ZONE_C.polygon]
 COALITION_ILLEGAL_ZONES = [CHINA]
 
 NAVY_ILLEGAL_ZONES = JAPAN_AND_ISLANDS + [CHINA] + OTHER_LAND
 
 # Nested Dictionary of - Key: Escalation Level - Key: Country - Key: Zone - Value: maximum rule
-coalition_engagement_rules = {1: {cs.TAIWAN: {ZONE_A.name: 4, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 4, ZONE_E.name: 4,
-                                              ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 4, ZONE_L.name: 4},
-                                  cs.USA: {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 4, ZONE_E.name: 4,
-                                 ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
-                                  cs.JAPAN: {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
-                                   ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4}},
+coalition_engagement_rules = {
+    1: {
+        "cs.COALITION_TW_ESCORT": {ZONE_A.name: 4, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 4, ZONE_E.name: 4,
+                                   ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.COALITION_TW_AIRCRAFT": {ZONE_A.name: 4, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 4, ZONE_E.name: 4,
+                                     ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.COALITION_TW_SUB": {ZONE_A.name: 4, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 4, ZONE_E.name: 4,
+                                ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 4, ZONE_L.name: 4},
 
-                              2: {cs.TAIWAN: {ZONE_A.name: 4, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 4, ZONE_E.name: 4,
-                                    ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 1, ZONE_L.name: 4},
-                        cs.USA: {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 4, ZONE_E.name: 4,
-                                 ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
-                        cs.JAPAN: {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
-                                   ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4}},
+        "cs.COALITION_US_ESCORT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 4, ZONE_E.name: 4,
+                                   ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.COALITION_US_AIRCRAFT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 4, ZONE_E.name: 4,
+                                     ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.COALITION_US_SUB": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 4, ZONE_E.name: 4,
+                                ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
 
-                              3: {cs.TAIWAN: {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 2,
-                                    ZONE_F.name: 1, ZONE_G.name: 2, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 4},
-                        cs.USA: {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 2,
-                                 ZONE_F.name: 2, ZONE_G.name: 2, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
-                        cs.JAPAN: {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
-                                   ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4}},
+        "cs.COALITION_JP_ESCORT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                                   ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.COALITION_JP_AIRCRAFT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                                     ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.COALITION_JP_SUB": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                                ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4}
+    },
 
-                              4: {cs.TAIWAN: {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
-                                    ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 4},
-                        cs.USA: {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 1,
-                                 ZONE_F.name: 2, ZONE_G.name: 1, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
-                        cs.JAPAN: {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 2, ZONE_D.name: 1, ZONE_E.name: 1,
-                                   ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4}},
+    2: {
+        "cs.TW_ESCORT": {ZONE_A.name: 4, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 4, ZONE_E.name: 4,
+                         ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 1, ZONE_L.name: 4},
+        "cs.TW_AIRCRAFT": {ZONE_A.name: 4, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 4, ZONE_E.name: 4,
+                           ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 1, ZONE_L.name: 4},
+        "cs.TW_SUB": {ZONE_A.name: 4, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 4, ZONE_E.name: 4,
+                      ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 1, ZONE_L.name: 4},
 
-                              5: {cs.TAIWAN: {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
-                                    ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
-                        cs.USA: {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
-                                 ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
-                        cs.JAPAN: {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
-                                   ZONE_F.name: 4, ZONE_G.name: 2, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1}}
-                              }
+        "cs.US_ESCORT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 4, ZONE_E.name: 4,
+                         ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.US_AIRCRAFT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 4, ZONE_E.name: 4,
+                           ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.US_SUB": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 4, ZONE_E.name: 4,
+                      ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+
+        "cs.JP_ESCORT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                         ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.JP_AIRCRAFT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                           ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.JP_SUB": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                      ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4}
+    },
+
+    3: {
+        "cs.TW_ESCORT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 2,
+                         ZONE_F.name: 1, ZONE_G.name: 2, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 4},
+        "cs.TW_AIRCRAFT": {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 2,
+                           ZONE_F.name: 2, ZONE_G.name: 2, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+        "cs.TW_SUB": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                      ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+
+        "cs.US_ESCORT": {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 2,
+                         ZONE_F.name: 2, ZONE_G.name: 2, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+        "cs.US_AIRCRAFT": {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 2,
+                           ZONE_F.name: 2, ZONE_G.name: 2, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+        "cs.US_SUB": {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 2,
+                      ZONE_F.name: 2, ZONE_G.name: 2, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+
+        "cs.JP_ESCORT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                         ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.JP_AIRCRAFT": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                           ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4},
+        "cs.JP_SUB": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                      ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4}
+    },
+
+    4: {
+        "cs.TW_ESCORT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                         ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 4},
+        "cs.TW_AIRCRAFT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 1,
+                           ZONE_F.name: 2, ZONE_G.name: 1, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+        "cs.TW_SUB": {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 2, ZONE_D.name: 1, ZONE_E.name: 1,
+                      ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+
+        "cs.US_ESCORT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 1,
+                         ZONE_F.name: 2, ZONE_G.name: 1, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+        "cs.US_AIRCRAFT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 2, ZONE_E.name: 1,
+                           ZONE_F.name: 2, ZONE_G.name: 1, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+        "cs.US_SUB": {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 2, ZONE_D.name: 1, ZONE_E.name: 1,
+                      ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+
+        "cs.JP_ESCORT": {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 2, ZONE_D.name: 1, ZONE_E.name: 1,
+                         ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+        "cs.JP_AIRCRAFT": {ZONE_A.name: 2, ZONE_B.name: 2, ZONE_C.name: 2, ZONE_D.name: 1, ZONE_E.name: 1,
+                           ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 2, ZONE_I.name: 2, ZONE_L.name: 4},
+        "cs.JP_SUB": {ZONE_A.name: 4, ZONE_B.name: 4, ZONE_C.name: 4, ZONE_D.name: 2, ZONE_E.name: 1,
+                      ZONE_F.name: 4, ZONE_G.name: 4, ZONE_H.name: 4, ZONE_I.name: 4, ZONE_L.name: 4}
+    },
+
+    5: {
+        "cs.TW_ESCORT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                         ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
+        "cs.TW_AIRCRAFT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                           ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
+        "cs.TW_SUB": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                      ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
+
+        "cs.US_ESCORT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                         ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
+        "cs.US_AIRCRAFT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                           ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
+        "cs.US_SUB": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                      ZONE_F.name: 1, ZONE_G.name: 1, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
+
+        "cs.JP_ESCORT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                         ZONE_F.name: 4, ZONE_G.name: 2, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
+        "cs.JP_AIRCRAFT": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                           ZONE_F.name: 4, ZONE_G.name: 2, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1},
+        "cs.JP_SUB": {ZONE_A.name: 1, ZONE_B.name: 1, ZONE_C.name: 1, ZONE_D.name: 1, ZONE_E.name: 1,
+                      ZONE_F.name: 4, ZONE_G.name: 2, ZONE_H.name: 1, ZONE_I.name: 1, ZONE_L.name: 1}
+    }
+}
 
 coalition_rules = coalition_engagement_rules.copy()
 
 zone_assignment_hunter = {agent: {zone: 0 for zone in ZONES} for agent in cs.HUNTER_TYPES}
 zone_assignment_coalition = {agent: {zone: 0 for zone in ZONES} for agent in cs.COALITION_ACTIVE_TYPES}
-
