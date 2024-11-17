@@ -506,7 +506,7 @@ class HunterShip(Ship):
             self.generate_route(destination=target.location)
 
     def initialize_model(self) -> None:
-        information = [row for row in model_info.SHIP_MODELS if row['name'] == self.model][0]
+        information = [row for row in model_info.CN_NAVY_MODELS if row['name'] == self.model][0]
 
         self.team = information['team']
         self.able_to_attack = True
@@ -517,6 +517,10 @@ class HunterShip(Ship):
         self.speed_current = self.speed_cruising
         self.displacement = information['Displacement']
         self.endurance = information['endurance']
+
+        if self.endurance is None:
+            self.endurance = 8000.11111111
+
         self.remaining_endurance = self.endurance
 
         for weapon in str(information['Anti-ship Weapon List']).split(","):
@@ -614,41 +618,10 @@ class Escort(Ship):
 
     def __init__(self, manager, base: Base, model: str):
         super().__init__(manager, base, model)
-
-    @abstractmethod
-    def surface_detection(self) -> object | None:
-        pass
-
-    @abstractmethod
-    def air_detection(self) -> object | None:
-        pass
-
-
-    @abstractmethod
-    def sub_detection(self) -> object | None:
-        pass
-
-
-    @abstractmethod
-    def reached_end_of_route(self) -> None:
-        pass
-
-    @abstractmethod
-    def destroyed_log_update(self):
-        pass
-
-
-class TaiwanEscort(Escort):
-    def __init__(self, manager, base: Base, model: str):
-        super().__init__(manager, base, model)
-        self.service = constants.COALITION_TW_ESCORT
-        self.obstacles = zones.JAPAN_AND_ISLANDS + zones.OTHER_LAND + [zones.CHINA] + zones.TAIWAN_AND_ISLANDS
+        self.name = None
         self.model = model
+        self.obstacles = zones.JAPAN_AND_ISLANDS + zones.OTHER_LAND + [zones.CHINA] + zones.TAIWAN_AND_ISLANDS
         self.initialize_model()
-
-        self.marker_type = "D"
-        self.color = constants.TAIWAN_ESCORT_COLOR
-        self.radius = self.surface_detection_range
 
     def __str__(self):
         if self.is_trailing:
@@ -668,17 +641,35 @@ class TaiwanEscort(Escort):
         information = [row for row in model_info.SHIP_MODELS if row['name'] == self.model][0]
 
         self.team = information['team']
+        self.name = information['name']
+
         self.surface_visibility = information['SurfaceVisibility']
+        self.air_visibility = information['Airvisibility']
+        self.sub_visibility = information['UnderseaVisibility']
+
+        self.surface_detection_range = information['surface_detection_range']
+        self.air_detection_range = information['air_detection_range']
+        self.sub_detection_range = information['submarine_detection_range']
+
         self.speed_max = information['SpeedMax']
         self.speed_cruising = information['SpeedCruise']
         self.speed_current = self.speed_cruising
         self.displacement = information['Displacement']
         self.endurance = information['endurance']
+        if self.endurance is None:
+            self.endurance = 8000.11111111
         self.remaining_endurance = self.endurance
+
+        # TODO: Probably make a weapon object?
+        anti_ship_range_list = str(information['Anti-ship range list']).split(",")
 
         for index, weapon in enumerate(str(information['Anti-ship Weapon List']).split(",")):
             self.anti_surface_weapons = weapon
-            self.surf_ammo_max = str(information['Anti-ship ammunition list']).split(',')[index]
+            try:
+                self.surf_ammo_max = str(information['Anti-ship ammunition list']).split(',')[index]
+            except IndexError:
+                print(f"Error linking weapon and ammo list: \n"
+                      f"{information['Anti-ship Weapon List']} &  {information['Anti-ship ammunition list']}")
             self.surf_ammo_current = self.surf_ammo_max
         self.helicopter = True if information['helicopter'] == "Y" else False
 
@@ -689,7 +680,7 @@ class TaiwanEscort(Escort):
             distance = general_maths.calculate_distance(self.location, potential_target.location)
 
             if self.surface_detection_range == "Advanced":
-                if potential_target.surface_visability == "VSmall" and distance < 37:
+                if potential_target.surface_visibility == "VSmall" and distance < 37:
                     return potential_target
                 elif potential_target.surface_visibility == "Small" and distance < 37:
                     return potential_target
@@ -703,11 +694,9 @@ class TaiwanEscort(Escort):
         return None
 
     def air_detection(self) -> object | None:
-        # TODO: Implement air detection
         pass
 
     def sub_detection(self) -> object | None:
-        # TODO: Implement submarine detection
         pass
 
     def take_turn(self) -> None:
@@ -852,4 +841,35 @@ class TaiwanEscort(Escort):
     def destroyed_log_update(self) -> None:
         constants.interface.update_statistics_and_logs(event_code="escort_sunk",
                                                        log=f"{self} was sunk.")
+
+
+class TaiwanEscort(Escort):
+    def __init__(self, manager, base: Base, model: str):
+        super().__init__(manager, base, model)
+        self.service = constants.COALITION_TW_ESCORT
+
+        self.marker_type = "D"
+        self.color = constants.TAIWAN_ESCORT_COLOR
+        self.radius = 2
+
+
+class JapanEscort(Escort):
+    def __init__(self, manager, base: Base, model: str):
+        super().__init__(manager, base, model)
+        self.service = constants.COALITION_JP_ESCORT
+
+        self.marker_type = "D"
+        self.color = constants.JAPAN_ESCORT_COLOR
+        self.radius = 2
+
+
+class USEscort(Escort):
+    def __init__(self, manager, base: Base, model: str):
+        super().__init__(manager, base, model)
+        self.service = constants.COALITION_US_ESCORT
+
+        self.marker_type = "D"
+        self.color = constants.US_ESCORT_COLOR
+        self.radius = 2
+
 

@@ -14,7 +14,7 @@ from agents import Agent
 import model_info
 
 from aircraft import UAV
-from ships import Merchant, HunterShip, TaiwanEscort
+from ships import Merchant, HunterShip, TaiwanEscort, JapanEscort, USEscort
 
 import os
 import logging
@@ -129,8 +129,11 @@ class AgentManager:
         elif self.team == constants.TEAM_COALITION:
             agent = random.choice(self.inactive_agents)
 
-            # See assignment of zone for
-            # TODO: Assign coalition units based on ccs.coalition_engagement_rules
+            # See assignment of zone for agent type
+            zone_assignment = zones.zone_assignment_coalition
+            zone_probabilities = zone_assignment[agent.service]
+            zone = np.random.choice(list(zone_probabilities.keys()), p=list(zone_probabilities.values()))
+            return "start_patrol", zone
 
         else:
             raise ValueError(f"Invalid Team {self.team}")
@@ -213,7 +216,7 @@ class UAVManager(AgentManager):
         self.drone_types = []
 
         self.initiate_bases()
-        self.initiate_drones()
+        self.initiate_agents()
         self.calculate_utilization_rates()
 
     def __str__(self):
@@ -228,7 +231,7 @@ class UAVManager(AgentManager):
                                                                 force_maintain=True, name="Liangcheng")),
                       ]
 
-    def initiate_drones(self):
+    def initiate_agents(self):
         logger.debug("Initiating Drones...")
         for row in model_info.UAV_MODELS:
             if row['team'] == constants.TEAM_CHINA and row['type'] == "UAV":
@@ -292,6 +295,7 @@ class CNManager(AgentManager):
     """
     Chinese Navy Manager
     """
+
     def __init__(self):
         super().__init__()
         self.team = constants.TEAM_CHINA
@@ -311,9 +315,9 @@ class CNManager(AgentManager):
                       Harbour(name="Qingdao", location=Point(121.105, 35.379))]
 
     def initiate_agents(self):
-        for row in model_info.SHIP_MODELS:
+        for row in model_info.CN_NAVY_MODELS:
             if row['team'] == constants.TEAM_CHINA and (row['service'] == 'CCG' or row['service'] == 'MSA'):
-                for _ in range(row['numberofagents']):
+                for _ in range(int(row['numberofagents'])):
                     self.inactive_agents.append(HunterShip(manager=self,
                                                            base=self.select_random_base(),
                                                            model=row['name']))
@@ -323,23 +327,16 @@ class CNManager(AgentManager):
         Activating agents to mission zones when underutilized
         :return:
         """
-        # if constants.CHINA_SELECTED_LEVEL > 1:
-        #     for agent in self.active_agents:
-        #         agent.return_to_base()
-        #     return
 
         total_agents = len(self.inactive_agents) + len(self.active_agents)
         ready_agents = [agent for agent in self.inactive_agents if agent.remaining_maintenance_time == 0]
-        while len(self.active_agents) / total_agents < 0.3 and len(ready_agents):
+        while len(self.active_agents) / total_agents < 0.35 and len(ready_agents):
             new_agent = random.choice(ready_agents)
             mission, zone = self.select_mission()
-            print(f"Sending agent {new_agent} to zone {zone.name}")
             new_agent.activate(mission, zone)
             self.inactive_agents.remove(new_agent)
             self.active_agents.append(new_agent)
             ready_agents.remove(new_agent)
-
-
 
     def send_attacker(self, target: Agent):
         agent_to_respond = self.find_ship_able_to_attack(target)
@@ -458,16 +455,62 @@ class MerchantManager(AgentManager):
                                            model=merchant_type))
 
 
-class TaiwanEscortManager(AgentManager):
+class EscortManager(AgentManager):
     def __init__(self):
         super().__init__()
+        self.name = None
         self.team = constants.TEAM_COALITION
-        self.name = "Taiwan Escort Manager"
-        self.initiate_bases()
-        self.initiate_agents()
 
     def __str__(self):
         return self.name
+
+    @abstractmethod
+    def initiate_bases(self):
+        pass
+
+    @abstractmethod
+    def initiate_agents(self):
+        pass
+
+    def custom_actions(self) -> None:
+        total_agents = len(self.inactive_agents) + len(self.active_agents)
+        ready_agents = [agent for agent in self.inactive_agents if agent.remaining_maintenance_time == 0]
+        while len(self.active_agents) / total_agents < 0.10 and len(ready_agents):
+            new_agent = random.choice(ready_agents)
+            mission, zone = self.select_mission()
+            new_agent.activate(mission, zone)
+            self.inactive_agents.remove(new_agent)
+            self.active_agents.append(new_agent)
+            ready_agents.remove(new_agent)
+
+        # Send to liberate any captured Merchants
+        if constants.COALITION_SELECTED_LEVEL > 1:
+            for merchant in constants.world.MerchantManager.active_agents:
+                if merchant.is_boarded and not zones.ZONE_L.check_if_agent_in_zone(merchant):
+                    escort = self.find_ship_able_to_liberate(merchant)
+                    escort.start_trailing(merchant)
+
+    def find_ship_able_to_liberate(self, target: Agent) -> TaiwanEscort | JapanEscort | USEscort:
+        close_active_agents = [agent for agent in self.active_agents if
+                               agent.able_to_attack and not agent.is_returning]
+        # close_active_agents = sorted(close_active_agents,
+        #                              key=lambda x: general_maths.calculate_distance(x.location, target.location))
+        for agent in close_active_agents:
+            if agent.reach_and_return(target.location):
+                return agent
+
+        eligible_inactive_agents = [agent for agent in self.inactive_agents
+                                    if agent.reach_and_return(target.location)]
+        if len(eligible_inactive_agents) > 0:
+            return eligible_inactive_agents[0]
+
+
+class TaiwanEscortManager(EscortManager):
+    def __init__(self):
+        super().__init__()
+        self.name = "Taiwan Escort Manager"
+        self.initiate_bases()
+        self.initiate_agents()
 
     def initiate_bases(self) -> None:
         self.bases = [Harbour(name="Kaohsiung",
@@ -484,42 +527,60 @@ class TaiwanEscortManager(AgentManager):
                               probability=0.05)
                       ]
 
-    def initiate_agents(self):
+    def initiate_agents(self) -> None:
         for row in model_info.SHIP_MODELS:
             if row['team'] == 1 and row['base'] == "Taiwan":
-                for _ in range(row['numberofagents']):
+                for _ in range(int(row['numberofagents'])):
                     self.inactive_agents.append(TaiwanEscort(manager=self,
                                                              base=self.select_random_base(),
                                                              model=row['name']))
 
-    def custom_actions(self):
-        total_agents = len(self.inactive_agents) + len(self.active_agents)
-        ready_agents = [agent for agent in self.inactive_agents if agent.remaining_maintenance_time == 0]
-        while len(self.active_agents) / total_agents < 0.03 and len(ready_agents):
-            new_agent = random.choice(ready_agents)
-            mission, zone = self.select_mission()
-            new_agent.activate(mission, zone)
-            self.inactive_agents.remove(new_agent)
-            self.active_agents.append(new_agent)
-            ready_agents.remove(new_agent)
 
-        # Send to liberate any captured Merchants
-        if constants.COALITION_SELECTED_LEVEL > 1:
-            for merchant in constants.world.MerchantManager.active_agents:
-                if merchant.is_boarded and not zones.ZONE_L.check_if_agent_in_zone(merchant):
-                    escort = self.find_ship_able_to_liberate(merchant)
-                    escort.start_trailing(merchant)
+class JapanEscortManager(EscortManager):
+    def __init__(self):
+        super().__init__()
+        self.team = constants.TEAM_COALITION
+        self.name = "Japan Escort Manager"
+        self.initiate_bases()
+        self.initiate_agents()
 
-    def find_ship_able_to_liberate(self, target: Agent) -> TaiwanEscort:
-        close_active_agents = [agent for agent in self.active_agents if
-                               agent.able_to_attack and not agent.is_returning]
-        # close_active_agents = sorted(close_active_agents,
-        #                              key=lambda x: general_maths.calculate_distance(x.location, target.location))
-        for agent in close_active_agents:
-            if agent.reach_and_return(target.location):
-                return agent
+    def __str__(self):
+        return self.name
 
-        eligible_inactive_agents = [agent for agent in self.inactive_agents
-                                    if agent.reach_and_return(target.location)]
-        if len(eligible_inactive_agents) > 0:
-            return eligible_inactive_agents[0]
+    def initiate_bases(self) -> None:
+        self.bases = [Harbour(name="Okinawa",
+                              location=Point(127.737, 26.588, name="Okinawa", force_maintain=True),
+                              probability=0.4)]
+
+    def initiate_agents(self) -> None:
+        for row in model_info.SHIP_MODELS:
+            if row['team'] == 1 and row['base'] == "Japan":
+                for _ in range(int(row['numberofagents'])):
+                    self.inactive_agents.append(JapanEscort(manager=self,
+                                                            base=self.select_random_base(),
+                                                            model=row['name']))
+
+
+class USAEscortManager(EscortManager):
+    def __init__(self):
+        super().__init__()
+        self.team = constants.TEAM_COALITION
+        self.name = "USA Escort Manager"
+        self.initiate_bases()
+        self.initiate_agents()
+
+    def __str__(self):
+        return self.name
+
+    def initiate_bases(self) -> None:
+        self.bases = [Harbour(name="Yokosuka",
+                              location=Point(137.307, 34.2, name="Yokosuka", force_maintain=True),
+                              probability=0.4)]
+
+    def initiate_agents(self) -> None:
+        for row in model_info.SHIP_MODELS:
+            if row['team'] == 1 and row['base'] == "Yokosuka":
+                for _ in range(int(row['numberofagents'])):
+                    self.inactive_agents.append(USEscort(manager=self,
+                                                         base=self.select_random_base(),
+                                                         model=row['name']))

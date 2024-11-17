@@ -1,3 +1,4 @@
+import random
 import tkinter as tk
 from tkinter import ttk
 
@@ -179,17 +180,17 @@ class Interface(tk.Tk):
         logging_frame = tk.Frame(tab)
         logging_frame.place(x=30, y=90)
 
-        self.log_canvas = tk.Canvas(logging_frame, width=500, height=500)
-        self.log_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=0)
+        self.log_canvas = tk.Canvas(logging_frame, height=5000, width=500)
 
         y_scrollbar = tk.Scrollbar(logging_frame, orient=tk.VERTICAL, command=self.log_canvas.yview)
         y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
+        self.log_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)  # Set to 0 if overextending
         self.log_canvas.configure(yscrollcommand=y_scrollbar.set)
         self.log_canvas.bind('<Configure>',
                              lambda _: self.log_canvas.configure(scrollregion=self.log_canvas.bbox('all')))
 
-        self.log_sub_frame = tk.Frame(self.log_canvas, width=500, height=500)
+        self.log_sub_frame = tk.Frame(self.log_canvas, width=500, height=1500)
 
         self.add_to_logs("Start of Simulation...")
 
@@ -387,7 +388,7 @@ class Interface(tk.Tk):
             label = ttk.Label(tab, text=zone.name)
             label.place(x=column_start, y=row_start + row_height * (index + 1))
 
-        for index, country in enumerate([constants.TAIWAN, constants.USA, constants.JAPAN]):
+        for index, country in enumerate(constants.COALITION_ACTIVE_TYPES):
             label = ttk.Label(tab, text=country)
             label.place(x=column_start + column_width * (index + 1.2), y=row_start)
 
@@ -411,22 +412,22 @@ class Interface(tk.Tk):
         self.selected_esc_level_var.set(f"Escalation Level: {level}")
         coalition_engagement_rules = zones.coalition_engagement_rules
 
-        for j, country in enumerate([constants.TAIWAN, constants.JAPAN, constants.USA]):
+        for j, agent_type in enumerate(constants.COALITION_ACTIVE_TYPES):
             for i, zone in enumerate(zones.ZONES_DISPLAY_ORDER):
-                min_value = coalition_engagement_rules[level][country][zone.name]
-                current_value = self.r_o_e_current_levels[level][country][zone.name]
+                min_value = coalition_engagement_rules[level][agent_type][zone.name]
+                current_value = self.r_o_e_current_levels[level][agent_type][zone.name]
                 valid_values = [value for value in [1, 2, 3, 4] if value >= min_value]
                 combobox = ttk.Combobox(self.r_o_e_tab, values=valid_values, width=2)
                 combobox.place(x=column_start + (j + 1.2) * column_width, y=row_start + (i + 1) * row_height)
 
                 combobox.set(current_value)
                 combobox.bind("<<ComboboxSelected>>",
-                              lambda x, lvl=level, c=country, zn=zone.name, val=combobox.get():
+                              lambda x, lvl=level, c=agent_type, zn=zone, val=combobox.get():
                               self.set_r_o_e(x, lvl, c, zn, val))
                 self.level_selectors.append(combobox)
 
     def set_r_o_e(self, event, level, country, zone, value):
-        print(f"Set {level}-{country}-{zone} to {value}")
+        print(f"Set {level}-{country}-{zone.name} to {value}")
         self.r_o_e_current_levels[level][country][zone.name] = value
 
     def create_assignment_tab(self) -> None:
@@ -445,8 +446,7 @@ class Interface(tk.Tk):
         tab_canvas.configure(xscrollcommand=x_scrollbar.set, yscrollcommand=y_scrollbar.set)
         tab_canvas.bind('<Configure>', lambda x: tab_canvas.configure(scrollregion=tab_canvas.bbox("all")))
 
-        tab_frame = tk.Frame(tab_canvas, width=1200, height=1000)
-
+        tab_frame = tk.Frame(tab_canvas)
         target_header = ttk.Label(tab_frame, text="Assignment Tab", font=('Helvetica', 16, 'bold'))
 
         hunter_header = ttk.Label(tab_frame, text="Hunter Assignments", font=('Helvetica', 12, 'bold'))
@@ -461,7 +461,7 @@ class Interface(tk.Tk):
         row_height = 40
 
         column_start = 20
-        column_width = 120
+        column_width = 140
 
         # Creating labeling
         for index, zone in enumerate(zones.ZONES_DISPLAY_ORDER):
@@ -480,7 +480,12 @@ class Interface(tk.Tk):
                                    command=lambda x, z=zone, h=hunter:
                                    self.set_assignment(x, z, h, 'hunter'))
                 scaler.place(x=column_start + (j + 1) * column_width, y=row_start + (i + 1) * row_height)
+
+                # TODO: Remove this; for now assigns random value to the sliders for testing
+                scaler.set(value=random.uniform(0, 100))
+
                 if zone.polygon in zones.HUNTER_ILLEGAL_ZONES:
+                    scaler.set(value=0)
                     scaler.state(['disabled'])
 
         # Coalition zone
@@ -502,10 +507,18 @@ class Interface(tk.Tk):
                                    command=lambda x, z=zone, a=agent:
                                    self.set_assignment(x, z, a, 'coalition'))
                 scaler.place(x=column_start + (j + 1) * column_width, y=row_start + (i + 1) * row_height)
+
+                # TODO: Remove this; for now assigns random value to the sliders for testing
+                scaler.set(value=random.uniform(0, 100))
+
                 if zone.polygon in zones.COALITION_ILLEGAL_ZONES:
+                    scaler.set(value=0)
                     scaler.state(['disabled'])
 
         tab_canvas.create_window((0, 0), window=tab_frame, anchor="nw")
+        final_width = column_start + (len(constants.COALITION_ACTIVE_TYPES) + 1) * column_width
+        final_height = row_start + (len(zones.ZONES_DISPLAY_ORDER) + 1) * row_height
+        tab_frame.configure(width=final_width,height=final_height)
 
     def set_assignment(self, val, zone: Zone, agent: str, agent_type: str):
         """
@@ -555,6 +568,7 @@ class Interface(tk.Tk):
                                            command=(lambda h=hunter, t=target:
                                                     self.update_r_o_e_rule(hunter=h, target=t)))
                 self.targeting_checkbox_vars[hunter][target] = checkbox_var
+                checkbox.invoke()
                 checkbox.place(x=column_start + (j + 2.3) * column_width, y=row_start + (i + 1) * row_height)
 
     def create_order_of_battle_tab(self) -> None:
@@ -612,7 +626,7 @@ class Interface(tk.Tk):
                                          validatecommand=(self.register(self.check_is_int), '%P'),
                                          textvariable=number_entry_value)
                 number_entry.place(x=merchant_col_start + 3 * column_width, y=height + j * row_height)
-
+                number_entry_value.set("5")
                 self.merchant_oob_entries[country][merchant_type] = number_entry_value
 
         tab_canvas.create_window((0, 0), window=tab_frame, anchor="nw")
@@ -674,6 +688,12 @@ class Interface(tk.Tk):
         :param log_text:
         :return:
         """
+        # TODO: Test this - Preventing duplicate logging for multiple ticks
+        if len(self.simulation_logs_labels) > 0:
+            last_log = self.simulation_logs_labels[-1].cget("text")
+            if last_log == log_text:
+                return
+
         self.simulation_logs.append(log_text)
         self.simulation_logs_labels.append(ttk.Label(self.log_sub_frame, text=log_text, font=('Segoe UI', 8)))
 

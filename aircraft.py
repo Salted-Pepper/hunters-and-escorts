@@ -72,6 +72,7 @@ class Aircraft(Agent):
 class UAV(Aircraft):
     def __init__(self, manager, base: Base, model: str):
         super().__init__(manager, base, model)
+        self.service = constants.HUNTER_UAV
         self.obstacles = zones.JAPAN_AND_ISLANDS + zones.OTHER_LAND + [zones.ZONE_B.polygon]
         self.color = constants.UAV_COLOR
         self.marker_type = "X"
@@ -354,10 +355,13 @@ class UAV(Aircraft):
         if self.mission == "start_patrol":
             self.mission = "patrol"
         if self.mission == "patrol":
-            new_location = self.assigned_zone.sample_patrol_location(self.obstacles)
+            new_location = self.assigned_zone.sample_patrol_location(self.obstacles + [constants.world.china_polygon])
             self.generate_route(new_location)
         elif self.mission == "trailing":
             self.movement_left_in_turn = 0
         elif self.mission == "return":
             self.movement_left_in_turn = 0
             self.enter_base()
+
+    def destroyed_log_update(self) -> None:
+        pass

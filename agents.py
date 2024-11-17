@@ -27,7 +27,6 @@ class Agent:
         """
         General Agent type
         """
-        # TODO: get a standard model dictionary that imports all required characteristics
         # ----- Identification -----
         global agent_id
         self.agent_id = agent_id
@@ -41,11 +40,11 @@ class Agent:
         # ----- Detection -----
         self.surface_visibility = None
         self.air_visibility = None
-        self.submarine_visibility = None
+        self.sub_visibility = None
 
         self.air_detection_range: str | None = None
         self.surface_detection_range: str | None = None
-        self.submarine_detection_range: str | None = None
+        self.sub_detection_range: str | None = None
 
         # ----- Movement -----
         self.assigned_zone = None
