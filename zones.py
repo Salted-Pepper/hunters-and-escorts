@@ -135,7 +135,7 @@ class Zone:
 
         if obstacles is None:
             obstacles = []
-
+        obstacles = obstacles.copy()
         obstacles.append(constants.world.china_polygon)
 
         attempts = 0

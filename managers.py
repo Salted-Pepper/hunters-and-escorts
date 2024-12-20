@@ -4,7 +4,6 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 import constants
-import general_maths
 import zones
 from oth_scanners import OTH
 from points import Point
@@ -52,7 +51,7 @@ class AgentManager:
     def initiate_bases(self):
         raise NotImplementedError("Initiate Bases not defined on MANAGER Level")
 
-    def calculate_utilization_rates(self):
+    def calculate_utilization_rates(self) -> float:
         """
         To be called after initializing agents and bases to calculate the utilization rates for the different models.
         Saves the results in a dictionary with the models as keys.
@@ -68,6 +67,19 @@ class AgentManager:
         #     self.utilization_rates[model] = 0.5 * (
         #             (agent_of_model.endurance - (2 * min_time_to_travel + min_time_to_trail)) /
         #             (agent_of_model.endurance + agent_of_model.maintenance_time))
+        return 0.15
+
+    def send_out_to_utilisation(self) -> None:
+        rate = self.calculate_utilization_rates()
+        total_agents = len(self.inactive_agents) + len(self.active_agents)
+        ready_agents = [agent for agent in self.inactive_agents if agent.remaining_maintenance_time == 0]
+        while len(self.active_agents) / total_agents < rate and len(ready_agents):
+            new_agent = random.choice(ready_agents)
+            mission, zone = self.select_mission()
+            new_agent.activate(mission, zone)
+            self.inactive_agents.remove(new_agent)
+            self.active_agents.append(new_agent)
+            ready_agents.remove(new_agent)
 
     def custom_actions(self) -> None:
         """
@@ -84,8 +96,8 @@ class AgentManager:
         #  Needs:
         # 0. Do any custom actions
         # 1. Manage the base
-        # 2. Check if we are at utilisation rate or not
-        # 3. Make agents make their moves
+        # 2. Make agents make their moves
+        # 3. Check if we are at utilisation rate or not
 
         # 0. Do any custom actions
         self.custom_actions()
@@ -95,20 +107,12 @@ class AgentManager:
         for base in self.bases:
             base.serve_agents()
 
-        # 2. Ensure utilization rate is satisfied
-
-        # 3. Make agents make their moves
+        # 2. Make agents make their moves
         for agent in self.active_agents:
             agent.take_turn()
 
-    def select_random_base(self) -> Harbour:
-        """
-        Selects a random harbour as destination for the convoy
-        :return:
-        """
-        return random.choices(self.bases, weights=[base.probability
-                                                   if base.probability is not None else 1 / len(self.bases)
-                                                   for base in self.bases], k=1)[0]
+        # 3. Ensure utilization rate is satisfied
+        self.send_out_to_utilisation()
 
     def select_mission(self) -> tuple[str, zones.Zone]:
         """
@@ -137,6 +141,15 @@ class AgentManager:
 
         else:
             raise ValueError(f"Invalid Team {self.team}")
+
+    def select_random_base(self) -> Harbour:
+        """
+        Selects a random harbour as destination for the convoy
+        :return:
+        """
+        return random.choices(self.bases, weights=[base.probability
+                                                   if base.probability is not None else 1 / len(self.bases)
+                                                   for base in self.bases], k=1)[0]
 
 
 class OTHManager(AgentManager):
@@ -240,21 +253,6 @@ class UAVManager(AgentManager):
                                                     base=self.select_random_base(),
                                                     model=row['name']))
 
-    def custom_actions(self) -> None:
-        """
-        Activating agents to mission zones when underutilized
-        :return:
-        """
-        total_agents = len(self.inactive_agents) + len(self.active_agents)
-        ready_agents = [agent for agent in self.inactive_agents if agent.remaining_maintenance_time == 0]
-        while len(self.active_agents) / total_agents < 0.10 and len(ready_agents):
-            new_agent = random.choice(ready_agents)
-            mission, zone = self.select_mission()
-            new_agent.activate(mission, zone)
-            self.inactive_agents.remove(new_agent)
-            self.active_agents.append(new_agent)
-            ready_agents.remove(new_agent)
-
     def send_attacker(self, target) -> None:
         agent_to_respond = self.find_uav_able_to_attack(target)
         if agent_to_respond is None:
@@ -265,7 +263,6 @@ class UAVManager(AgentManager):
             self.inactive_agents.remove(agent_to_respond)
             self.active_agents.append(agent_to_respond)
             agent_to_respond.activate(mission="trail",
-                                      zone=zones.ZONE_I,
                                       target=target)
         else:
             agent_to_respond.start_trailing(target)
@@ -322,29 +319,12 @@ class CNManager(AgentManager):
                                                            base=self.select_random_base(),
                                                            model=row['name']))
 
-    def custom_actions(self) -> None:
-        """
-        Activating agents to mission zones when underutilized
-        :return:
-        """
-
-        total_agents = len(self.inactive_agents) + len(self.active_agents)
-        ready_agents = [agent for agent in self.inactive_agents if agent.remaining_maintenance_time == 0]
-        while len(self.active_agents) / total_agents < 0.35 and len(ready_agents):
-            new_agent = random.choice(ready_agents)
-            mission, zone = self.select_mission()
-            new_agent.activate(mission, zone)
-            self.inactive_agents.remove(new_agent)
-            self.active_agents.append(new_agent)
-            ready_agents.remove(new_agent)
-
     def send_attacker(self, target: Agent):
         agent_to_respond = self.find_ship_able_to_attack(target)
         if not agent_to_respond.activated:
             self.inactive_agents.remove(agent_to_respond)
             self.active_agents.append(agent_to_respond)
             agent_to_respond.activate(mission="trail",
-                                      zone=zones.ZONE_I,
                                       target=target)
         else:
             agent_to_respond.start_trailing(target)
@@ -399,7 +379,7 @@ class MerchantManager(AgentManager):
                               probability=0.05)
                       ]
 
-    def custom_actions(self):
+    def send_out_to_utilisation(self):
         self.generate_merchants_entering()
 
         for merchant in self.inactive_agents:
@@ -408,15 +388,6 @@ class MerchantManager(AgentManager):
                 merchant.generate_route(merchant.entry_point)
                 self.inactive_agents.remove(merchant)
                 self.active_agents.append(merchant)
-
-    def select_random_base(self) -> Harbour:
-        """
-        Selects a random harbour as destination for the convoy
-        :return:
-        """
-        return random.choices(self.bases, weights=[base.probability
-                                                   if base.probability is not None else 1 / len(self.bases)
-                                                   for base in self.bases], k=1)[0]
 
     def generate_merchants_entering(self) -> None:
         """
@@ -471,24 +442,6 @@ class EscortManager(AgentManager):
     @abstractmethod
     def initiate_agents(self):
         pass
-
-    def custom_actions(self) -> None:
-        total_agents = len(self.inactive_agents) + len(self.active_agents)
-        ready_agents = [agent for agent in self.inactive_agents if agent.remaining_maintenance_time == 0]
-        while len(self.active_agents) / total_agents < 0.10 and len(ready_agents):
-            new_agent = random.choice(ready_agents)
-            mission, zone = self.select_mission()
-            new_agent.activate(mission, zone)
-            self.inactive_agents.remove(new_agent)
-            self.active_agents.append(new_agent)
-            ready_agents.remove(new_agent)
-
-        # Send to liberate any captured Merchants
-        if constants.COALITION_SELECTED_LEVEL > 1:
-            for merchant in constants.world.MerchantManager.active_agents:
-                if merchant.is_boarded and not zones.ZONE_L.check_if_agent_in_zone(merchant):
-                    escort = self.find_ship_able_to_liberate(merchant)
-                    escort.start_trailing(merchant)
 
     def find_ship_able_to_liberate(self, target: Agent) -> TaiwanEscort | JapanEscort | USEscort:
         close_active_agents = [agent for agent in self.active_agents if

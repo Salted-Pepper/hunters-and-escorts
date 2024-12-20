@@ -165,7 +165,7 @@ class OTH:
         dir_point_min = Point(direction_vector_x_min, direction_vector_y_min)
         dir_point_max = Point(direction_vector_x_max, direction_vector_y_max)
 
-        # We now rotate the points with the angle. We have to subtract location to rotate around the origin then readd
+        # We now rotate the points with the angle. We have to subtract location to rotate around the origin then re-add
         low_min = Point(self.rev_cos * (direction_vector_x_min - self.location.x)
                         - self.rev_sin * (direction_vector_y_min - self.location.y) + self.location.x,
                         self.rev_sin * (direction_vector_x_min - self.location.x)

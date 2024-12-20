@@ -107,12 +107,6 @@ class World:
     def initiate_receptor_grid(self):
         self.receptor_grid = ReceptorGrid(self.landmasses + [self.china_polygon], self)
 
-    def initiate_managers(self):
-        """
-        Create the managers per subcategory.
-        :return:
-        """
-
     def plot_world(self, include_receptors=False) -> None:
         if not cs.PLOTTING_MODE and not cs.DEBUG_MODE:
             return

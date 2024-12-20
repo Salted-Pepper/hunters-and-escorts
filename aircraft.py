@@ -33,18 +33,13 @@ class Aircraft(Agent):
 
         self.engaged_in_combat = False
         self.aircraft_type = None
+        self.obstacles = zones.JAPAN_AND_ISLANDS + zones.OTHER_LAND + [zones.ZONE_B.polygon]
+        self.called_in_attacker = False
 
-    @abstractmethod
-    def surface_detection(self) -> object | None:
-        pass
-
-    @abstractmethod
-    def air_detection(self) -> object | None:
-        pass
-
-    @abstractmethod
-    def sub_detection(self) -> object | None:
-        pass
+        self.model = model
+        self.initialize_model()
+        self.radius = self.surface_attack_range
+        self.calculate_maintenance_time()
 
     def initialize_model(self) -> None:
         information = [row for row in model_info.UAV_MODELS if row['name'] == self.model][0]
@@ -63,73 +58,10 @@ class Aircraft(Agent):
 
         for weapon in str(information['SurfaceWeaponsList']).split(","):
             self.anti_surface_weapons = weapon
-            # TODO: Adjust this for multiple weapons
+            # TODO: Change for new weapon model
             self.surf_ammo_max = int(information['SurfaceAmmunitionList'])
             self.surf_ammo_current = self.surf_ammo_max
         self.aircraft_type = information['type']
-
-
-class UAV(Aircraft):
-    def __init__(self, manager, base: Base, model: str):
-        super().__init__(manager, base, model)
-        self.service = constants.HUNTER_UAV
-        self.obstacles = zones.JAPAN_AND_ISLANDS + zones.OTHER_LAND + [zones.ZONE_B.polygon]
-        self.color = constants.UAV_COLOR
-        self.marker_type = "X"
-        self.called_in_attacker = False
-
-        self.model = model
-        self.initialize_model()
-        self.radius = self.surface_attack_range
-        self.calculate_maintenance_time()
-
-    def __str__(self):
-        if self.mission == "patrolling":
-            return f"u{self.agent_id}p"
-        elif self.is_returning:
-            return f"u{self.agent_id}r"
-        elif self.is_trailing:
-            return f"u{self.agent_id}t"
-        else:
-            return f"u{self.agent_id}"
-
-    def take_turn(self) -> None:
-        self.movement_left_in_turn = self.speed_current * constants.world.time_delta
-
-        if not self.can_continue():
-            self.return_to_base()
-            self.move_through_route()
-
-        i = 0
-        while self.movement_left_in_turn > 0:
-
-            if not (self in self.manager.active_agents):
-                print(f"{self} - {self.mission}")
-
-            i += 1
-            if i > 100:
-                print(f"{self.mission} - {self.movement_left_in_turn}")
-            if self.mission == "start_patrol":
-                self.move_through_route()
-            elif self.mission == "trail":
-                self.update_trail_route()
-                self.move_through_route()
-
-                if self.located_agent is not None:
-                    if self.location == self.located_agent.location:
-                        self.movement_left_in_turn = 0
-                    self.take_action_on_agent()
-
-            elif self.mission == "patrol":
-                self.move_through_route()
-                self.surface_detection()
-            elif self.mission == "return":
-                self.move_through_route()
-
-            if not (self in self.manager.active_agents):
-                print(f"{self} - {self.mission}")
-
-        self.update_plot()
 
     def take_action_on_agent(self) -> None:
         if zones.ZONE_B.polygon.check_if_contains_point(self.located_agent.location):
@@ -148,6 +80,44 @@ class UAV(Aircraft):
             self.attack()
         elif constants.CHINA_SELECTED_LEVEL > 1:
             self.call_in_attacking_UAV()
+
+    def take_turn(self) -> None:
+        self.movement_left_in_turn = self.speed_current * constants.world.time_delta
+
+        if not self.can_continue():
+            self.return_to_base()
+            self.move_through_route()
+
+        i = 0
+        while self.movement_left_in_turn > 0:
+            if not (self in self.manager.active_agents):
+                print(f"{self} - {self.mission}")
+
+            if i > 1000:
+                raise TimeoutError(f"")
+
+            if self.mission == "start_patrol":
+                self.move_through_route()
+
+            elif self.mission == "trail":
+                self.update_trail_route()
+                self.move_through_route()
+                if self.located_agent is not None:
+                    if self.location == self.located_agent.location:
+                        self.movement_left_in_turn = 0
+                    self.take_action_on_agent()
+
+            elif self.mission == "patrol":
+                self.move_through_route()
+                self.surface_detection()
+
+            elif self.mission == "return":
+                self.move_through_route()
+
+            if not (self in self.manager.active_agents):
+                print(f"{self} - {self.mission}")
+
+        self.update_plot()
 
     def stop_trailing(self, reason: str) -> None:
         """
@@ -346,3 +316,21 @@ class UAV(Aircraft):
 
     def destroyed_log_update(self) -> None:
         pass
+
+
+class UAV(Aircraft):
+    def __init__(self, manager, base: Base, model: str):
+        super().__init__(manager, base, model)
+        self.service = constants.HUNTER_UAV
+        self.color = constants.UAV_COLOR
+        self.marker_type = "X"
+
+    def __str__(self):
+        if self.mission == "patrolling":
+            return f"u{self.agent_id}p"
+        elif self.is_returning:
+            return f"u{self.agent_id}r"
+        elif self.is_trailing:
+            return f"u{self.agent_id}t"
+        else:
+            return f"u{self.agent_id}"

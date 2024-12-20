@@ -221,11 +221,11 @@ class Agent:
         :param target:
         :return:
         """
-        self.assigned_zone = zone
-        self.activated = True
-        self.mission = mission
-
         if mission == "start_patrol":
+            self.assigned_zone = zone
+            self.activated = True
+            self.mission = mission
+            logger.debug(f"{self} starting patrol in zone {zone}")
             patrol_location = zone.sample_patrol_location(obstacles=self.obstacles)
             self.generate_route(destination=patrol_location)
 
@@ -236,6 +236,7 @@ class Agent:
             self.is_trailing = True
             self.located_agent = target
             self.generate_route(destination=target.location)
+            logger.debug(f"{self} set to target {target}")
 
     def allowed_to_attack(self, target: object) -> bool:
         """
@@ -274,6 +275,7 @@ class Agent:
             t_rules = constants.targeting_rules
             allowed = t_rules[self.service][target.service]
             return allowed
+
         else:
             raise ValueError(f"Unknown team - {self.team}")
 
@@ -347,8 +349,8 @@ class Agent:
         self.return_to_base()
 
     def stop_guarding(self):
-        self.return_to_base()
         self.guarding_target = None
+        self.return_to_base()
 
     def release_support_agents(self) -> None:
         """
@@ -362,6 +364,8 @@ class Agent:
     def return_to_base(self) -> None:
         self.mission = "return"
         self.generate_route(destination=self.base.location)
+
+        self.assigned_zone = None
 
         self.is_returning = True
         self.is_trailing = False
@@ -389,7 +393,6 @@ class Agent:
         self.manager.inactive_agents.append(self)
         self.engaged_in_combat = False
 
-        self.remaining_endurance = self.endurance
         self.remaining_maintenance_time = self.maintenance_time
 
         if not self.CTL:
@@ -415,11 +418,12 @@ class Agent:
                 self.stop_trailing("Target Reached Safe Zone")
                 return
             elif self.located_agent.destroyed:
-                logger.debug(f"Agent {self} is stopped chasing {self.located_agent} "
+                logger.debug(f"Agent {self} has stopped chasing {self.located_agent} "
                              f"- was destroyed.")
                 self.stop_trailing("Target Destroyed")
                 return
-            elif not zones.ZONE_I.check_if_agent_in_zone(self.located_agent):
+            # TODO: Check if this is in any of the agents legal zones rather than assigned zone
+            elif not self.assigned_zone.check_if_agent_in_zone(self.located_agent):
                 self.stop_trailing("Left area of interest")
                 return
 
@@ -430,24 +434,21 @@ class Agent:
                     self.stop_trailing("Target Entered Safe Zone")
                     return
 
-        elif self.located_agent is not None and self.mission == "guarding":
-            if not self.located_agent.activated or self.located_agent.destroyed:
-                self.mission = "patrol"
+            self.generate_route(destination=self.located_agent.location)
+
+        elif self.guarding_target is not None and self.mission == "guarding":
+            if not self.guarding_target.activated or self.guarding_target.destroyed:
+                self.stop_guarding()
+                return
             for polygon in self.obstacles:
+                # TODO: Also make this check based on legal zones
                 if polygon.check_if_contains_point(self.located_agent.location):
                     logger.debug(
                         f"Agent {self} is forced to stop guarding {self.located_agent} - left allowed zone.")
-                    self.return_to_base()
+                    self.stop_guarding()
                     return
 
-        if self.located_agent is None and self.guarding_target is None:
-            print(f"{self.located_agent} - {self.mission}")
-            self.return_to_base()
-
-        if self.located_agent is None and self.guarding_target is not None:
             self.generate_route(destination=self.guarding_target.location)
-        else:
-            self.generate_route(destination=self.located_agent.location)
 
         if constants.DEBUG_MODE:
             self.debug()
