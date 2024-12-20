@@ -33,6 +33,7 @@ class Agent:
         agent_id += 1
         self.manager = manager
         self.team = None
+        self.major_category = None
         self.base = base
         self.model = model
         self.service = None
@@ -211,6 +212,30 @@ class Agent:
             self.return_to_base()
         else:
             return True
+
+    def activate(self, mission: str, zone: Zone = None, target: object = None):
+        """
+        Start executing assigned mission in assigned zone
+        :param mission:
+        :param zone:
+        :param target:
+        :return:
+        """
+        self.assigned_zone = zone
+        self.activated = True
+        self.mission = mission
+
+        if mission == "start_patrol":
+            patrol_location = zone.sample_patrol_location(obstacles=self.obstacles)
+            self.generate_route(destination=patrol_location)
+
+        elif mission == "trail":
+            if target is None:
+                raise ValueError("Trying to trail with None target")
+
+            self.is_trailing = True
+            self.located_agent = target
+            self.generate_route(destination=target.location)
 
     def allowed_to_attack(self, target: object) -> bool:
         """

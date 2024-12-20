@@ -72,9 +72,6 @@ class OTH:
         sea_state = receptor.sea_state
         detected = False
 
-        # TODO: See if detection is based on RCS or cargo load
-        #  and detection of non-merchant agents? ----> Should probably be based on vsmall/small/etc..
-
         if isinstance(agent, Merchant):
             if sea_state <= 1:
                 detected = True

@@ -43,6 +43,7 @@ class Interface(tk.Tk):
 
         # Data warehousing for the tabs
         self.log_canvas = None
+        self.scalers = []
         self.simulation_logs = []
         self.simulation_logs_labels = []
 
@@ -453,6 +454,9 @@ class Interface(tk.Tk):
         instructions = ttk.Label(tab_frame, text="Drag the Slider to assign a larger "
                                                  "fraction of the corresponding agent to the zone.")
 
+        reset_button = ttk.Button(tab_frame, text="Reset Sliders", command=self.reset_scalers)
+        reset_button.place(x=200, y=20)
+
         target_header.place(x=20, y=20)
         hunter_header.place(x=20, y=70)
         instructions.place(x=20, y=90)
@@ -481,6 +485,7 @@ class Interface(tk.Tk):
                                    self.set_assignment(x, z, h, 'hunter'))
                 scaler.place(x=column_start + (j + 1) * column_width, y=row_start + (i + 1) * row_height)
 
+                self.scalers.append(scaler)
                 # TODO: Remove this; for now assigns random value to the sliders for testing
                 scaler.set(value=random.uniform(0, 100))
 
@@ -508,6 +513,7 @@ class Interface(tk.Tk):
                                    self.set_assignment(x, z, a, 'coalition'))
                 scaler.place(x=column_start + (j + 1) * column_width, y=row_start + (i + 1) * row_height)
 
+                self.scalers.append(scaler)
                 # TODO: Remove this; for now assigns random value to the sliders for testing
                 scaler.set(value=random.uniform(0, 100))
 
@@ -519,6 +525,10 @@ class Interface(tk.Tk):
         final_width = column_start + (len(constants.COALITION_ACTIVE_TYPES) + 1) * column_width
         final_height = row_start + (len(zones.ZONES_DISPLAY_ORDER) + 1) * row_height
         tab_frame.configure(width=final_width,height=final_height)
+
+    def reset_scalers(self) -> None:
+        for slider in self.scalers:
+            slider.set(value=0)
 
     def set_assignment(self, val, zone: Zone, agent: str, agent_type: str):
         """
@@ -688,11 +698,12 @@ class Interface(tk.Tk):
         :param log_text:
         :return:
         """
-        # TODO: Test this - Preventing duplicate logging for multiple ticks
         if len(self.simulation_logs_labels) > 0:
-            last_log = self.simulation_logs_labels[-1].cget("text")
-            if last_log == log_text:
-                return
+            last_five_or_less_logs = min(len(self.simulation_logs_labels), 5)
+            last_logs = [log.cget("text") for log in self.simulation_logs_labels[-last_five_or_less_logs:]]
+            for log in last_logs:
+                if log == log_text:
+                    return
 
         self.simulation_logs.append(log_text)
         self.simulation_logs_labels.append(ttk.Label(self.log_sub_frame, text=log_text, font=('Segoe UI', 8)))

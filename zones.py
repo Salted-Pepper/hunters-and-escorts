@@ -1,6 +1,7 @@
 import random
 
 import constants
+import zones
 from polygons import Polygon
 from points import Point
 import constants as cs
@@ -123,11 +124,19 @@ class Zone:
         self.name = name
         self.polygon = polygon
 
+    def __str__(self):
+        return self.name[0]
+
     def check_if_agent_in_zone(self, agent) -> bool:
         return self.polygon.check_if_contains_point(agent.location)
 
-    def sample_patrol_location(self, obstacles=None):
+    def sample_patrol_location(self, obstacles: list = None):
         valid_point = False
+
+        if obstacles is None:
+            obstacles = []
+
+        obstacles.append(constants.world.china_polygon)
 
         attempts = 0
         while not valid_point:

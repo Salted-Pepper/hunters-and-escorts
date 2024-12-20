@@ -49,7 +49,8 @@ class Merchant(Ship):
         self.team = constants.TEAM_COALITION
         self.country = country
         self.obstacles = constants.world.landmasses
-        self.service = self.service = constants.COALITION_TW_MERCHANT
+        self.major_category = constants.MERCHANT
+        self.service = constants.COALITION_TW_MERCHANT
 
         self.entry_point = None
         self.generate_entry_point()
@@ -343,6 +344,7 @@ class HunterShip(Ship):
     def __init__(self, manager, base: Base, model: str):
         super().__init__(manager, base, model)
         self.obstacles = zones.HUNTER_ILLEGAL_ZONES + zones.NAVY_ILLEGAL_ZONES
+        self.major_category = constants.HUNTER_NAVY
         self.model = model
         self.radius = 12
         self.team = constants.TEAM_CHINA
@@ -355,15 +357,15 @@ class HunterShip(Ship):
 
     def __str__(self):
         if self.mission == "start_patrol":
-            return f"h{self.agent_id}s"
+            return f"h{self.agent_id}s{self.assigned_zone}"
         elif self.mission == "patrol":
-            return f"h{self.agent_id}p"
+            return f"h{self.agent_id}p{self.assigned_zone}"
         elif self.mission == "trail":
-            return f"h{self.agent_id}t"
+            return f"h{self.agent_id}t{self.assigned_zone}"
         elif self.mission == "guarding":
-            return f"h{self.agent_id}g"
+            return f"h{self.agent_id}g{self.assigned_zone}"
         elif self.mission == "return":
-            return f"h{self.agent_id}r"
+            return f"h{self.agent_id}r{self.assigned_zone}"
         else:
             return f"h{self.agent_id}"
 
@@ -429,6 +431,10 @@ class HunterShip(Ship):
                 target = self.surface_detection()
                 if target is not None and isinstance(target, Merchant):
                     self.start_trailing(target)
+                elif target is issubclass(type(target), Escort):
+                    # TODO: treat non-merchant targets - consider redoing finding and treating targets.
+                    #  Current issue: might find non-eligible target before eligible one
+                    pass
             elif self.mission == "guarding":
                 self.update_trail_route()
                 self.move_through_route()
@@ -484,27 +490,6 @@ class HunterShip(Ship):
                     self.debug()
                 return
 
-    def activate(self, mission: str, zone: Zone = None, target: Agent | Merchant = None):
-        """
-        Start executing assigned mission in assigned zone
-        :param mission:
-        :param zone:
-        :param target:
-        :return:
-        """
-        self.assigned_zone = zone
-        self.activated = True
-        self.mission = mission
-
-        if mission == "start_patrol":
-            patrol_location = zone.sample_patrol_location(obstacles=self.obstacles)
-            self.generate_route(destination=patrol_location)
-
-        elif mission == "trail":
-            self.is_trailing = True
-            self.located_agent = target
-            self.generate_route(destination=target.location)
-
     def initialize_model(self) -> None:
         information = [row for row in model_info.CN_NAVY_MODELS if row['name'] == self.model][0]
 
@@ -523,11 +508,8 @@ class HunterShip(Ship):
 
         self.remaining_endurance = self.endurance
 
-        for weapon in str(information['Anti-ship Weapon List']).split(","):
-            self.anti_surface_weapons = weapon
-            # TODO: Adjust this for multiple weapons
-            self.surf_ammo_max = information['Anti-ship ammunition list']
-            self.surf_ammo_current = self.surf_ammo_max
+        # TODO: Import weapons in new method
+
         self.helicopter = True if information['helicopter'] == "Y" else False
         self.service = information['service']
 
@@ -622,18 +604,19 @@ class Escort(Ship):
         self.model = model
         self.obstacles = zones.JAPAN_AND_ISLANDS + zones.OTHER_LAND + [zones.CHINA] + zones.TAIWAN_AND_ISLANDS
         self.initialize_model()
+        self.major_category = constants.COALITION_ESCORT
 
     def __str__(self):
         if self.is_trailing:
-            return f"e{self.agent_id}t"
+            return f"e{self.agent_id}t{self.assigned_zone}"
         elif self.mission == "guarding":
-            return f"e{self.agent_id}g"
+            return f"e{self.agent_id}g{self.assigned_zone}"
         elif self.mission == "start_patrol":
-            return f"e{self.agent_id}s"
+            return f"e{self.agent_id}s{self.assigned_zone}"
         elif self.mission == "patrol":
-            return f"e{self.agent_id}p"
+            return f"e{self.agent_id}p{self.assigned_zone}"
         elif self.mission == "return":
-            return f"e{self.agent_id}r"
+            return f"e{self.agent_id}r{self.assigned_zone}"
         else:
             return f"e{self.agent_id}"
 
@@ -660,9 +643,7 @@ class Escort(Ship):
             self.endurance = 8000.11111111
         self.remaining_endurance = self.endurance
 
-        # TODO: Probably make a weapon object?
-        anti_ship_range_list = str(information['Anti-ship range list']).split(",")
-
+        # TODO: Update for new weapon settings
         for index, weapon in enumerate(str(information['Anti-ship Weapon List']).split(",")):
             self.anti_surface_weapons = weapon
             try:
@@ -817,26 +798,6 @@ class Escort(Ship):
             self.stop_guarding()
         elif self.mission == "return":
             self.enter_base()
-
-    def activate(self, mission: str, zone: Zone = None, target: Agent | Merchant = None):
-        """
-        Start executing assigned mission in assigned zone
-        :param mission:
-        :param zone:
-        :param target:
-        :return:
-        """
-        self.assigned_zone = zone
-        self.activated = True
-        self.mission = mission
-        if mission == "start_patrol":
-            patrol_location = zone.sample_patrol_location(obstacles=self.obstacles)
-            self.generate_route(destination=patrol_location)
-
-        elif mission == "trail":
-            self.is_trailing = True
-            self.located_agent = target
-            self.generate_route(destination=target.location)
 
     def destroyed_log_update(self) -> None:
         constants.interface.update_statistics_and_logs(event_code="escort_sunk",

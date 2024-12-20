@@ -101,8 +101,7 @@ KOREA_POINTS = [Point(34.382635296628266, 126.1105936433172, lon_lat=True),
                 Point(37.740443375169086, 126.16328222811846, lon_lat=True),  # Left side border
                 Point(36.97643996172249, 126.67215349262747, lon_lat=True),
                 Point(36.777433290343886, 126.1293574771512, lon_lat=True),
-                Point(35.627722046101404, 126.49122148746869, lon_lat=True),
-                Point(34.33993969567544, 126.1293574771512, lon_lat=True),
+                Point(35.627722046101404, 126.49122148746869, lon_lat=True)
                 ]
 
 JEJUDO_POINTS = [Point(33.522375907040484, 126.90759969506134, lon_lat=True),

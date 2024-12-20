@@ -252,6 +252,7 @@ class UAV(Aircraft):
             if len(target_ship.trailing_agents) > 0:
                 continue
 
+            # TODO: Update target selection behaviour based on RoE
             # If it's an escort we want to avoid it
             if issubclass(type(target_ship), Escort):
                 continue
@@ -281,26 +282,6 @@ class UAV(Aircraft):
 
     def sub_detection(self) -> object | None:
         pass
-
-    def activate(self, mission: str, zone: Zone = None, target: Agent | Merchant = None):
-        """
-        Start executing assigned mission in assigned zone
-        :param mission:
-        :param zone:
-        :param target:
-        :return:
-        """
-        self.assigned_zone = zone
-        self.activated = True
-        self.mission = mission
-        if mission == "start_patrol":
-            patrol_location = zone.sample_patrol_location(obstacles=self.obstacles + [constants.world.china_polygon])
-            self.generate_route(destination=patrol_location)
-
-        elif mission == "trail":
-            self.is_trailing = True
-            self.located_agent = target
-            self.generate_route(destination=target.location)
 
     @staticmethod
     def roll_surface_detection_check(uav_location, agent: Agent, distance: float = None) -> float:
