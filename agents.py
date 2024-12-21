@@ -238,6 +238,9 @@ class Agent:
             self.generate_route(destination=target.location)
             logger.debug(f"{self} set to target {target}")
 
+        else:
+            raise ValueError(f"Invalid mission {mission}.")
+
     def allowed_to_attack(self, target: object) -> bool:
         """
         Checks if agent is allowed to attack a target based on the Targeting Rules and the RoE
@@ -479,6 +482,7 @@ class Agent:
 
     def was_destroyed(self) -> None:
         self.activated = False
+        self.manager.active_agents.remove(self)
         self.destroyed = True
         self.remove_trailing_agents("Agent Destroyed")
         self.remove_guarding_agents()

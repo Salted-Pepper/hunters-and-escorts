@@ -112,7 +112,7 @@ class Merchant(Ship):
             return f"m{self.agent_id}"
 
     def initialize_model(self) -> None:
-
+        self.remaining_endurance = math.inf
         self.initialize_cargo()
 
         self.maintenance_time = 3 * 24
@@ -422,8 +422,9 @@ class HunterShip(Ship):
 
         i = 0
         while self.movement_left_in_turn > 0:
+            i += 1
             if i > 100:
-                raise TimeoutError()
+                raise TimeoutError(f"{self} not able to spend movement during mission - {self.mission}")
             if self.mission == "start_patrol":
                 self.move_through_route()
             elif self.mission == "trail":
@@ -465,7 +466,7 @@ class HunterShip(Ship):
         information = [row for row in model_info.CN_NAVY_MODELS if row['name'] == self.model][0]
 
         self.team = information['team']
-        self.able_to_attack = True
+        self.able_to_attack = True if information['armed'] == 'Y' else False
         self.surface_visibility = information['SurfaceVisibility']
         self.surface_detection_range = information['surface_detection_range']
         self.speed_max = information['SpeedMax']
@@ -548,15 +549,16 @@ class HunterShip(Ship):
                 return
 
         logger.debug(f"{self} has boarded {self.located_agent}")
-        self.located_agent.successful_boarding()
+        self.guarding_target = self.located_agent
         self.is_trailing = False
         self.mission = "guarding"
-        self.guarding_target = self.located_agent
+        self.located_agent.successful_boarding()
         self.generate_route(self.located_agent.location)
 
     def reached_end_of_route(self) -> None:
         if self.mission == "start_patrol":
             self.mission = "patrol"
+
         if self.mission == "patrol":
             new_location = self.assigned_zone.sample_patrol_location(self.obstacles)
             self.generate_route(new_location)
@@ -565,13 +567,14 @@ class HunterShip(Ship):
         elif self.mission == "return":
             self.movement_left_in_turn = 0
             self.enter_base()
+        elif self.mission == "guarding":
+            self.movement_left_in_turn = 0
 
 
 class Escort(Ship):
 
     def __init__(self, manager, base: Base, model: str):
         super().__init__(manager, base, model)
-        self.name = None
         self.model = model
         self.obstacles = zones.JAPAN_AND_ISLANDS + zones.OTHER_LAND + [zones.CHINA] + zones.TAIWAN_AND_ISLANDS
         self.initialize_model()
@@ -595,7 +598,6 @@ class Escort(Ship):
         information = [row for row in model_info.SHIP_MODELS if row['name'] == self.model][0]
 
         self.team = information['team']
-        self.name = information['name']
 
         self.surface_visibility = information['SurfaceVisibility']
         self.air_visibility = information['Airvisibility']
@@ -615,14 +617,7 @@ class Escort(Ship):
         self.remaining_endurance = self.endurance
 
         # TODO: Update for new weapon settings
-        for index, weapon in enumerate(str(information['Anti-ship Weapon List']).split(",")):
-            self.anti_surface_weapons = weapon
-            try:
-                self.surf_ammo_max = str(information['Anti-ship ammunition list']).split(',')[index]
-            except IndexError:
-                print(f"Error linking weapon and ammo list: \n"
-                      f"{information['Anti-ship Weapon List']} &  {information['Anti-ship ammunition list']}")
-            self.surf_ammo_current = self.surf_ammo_max
+
         self.helicopter = True if information['helicopter'] == "Y" else False
 
     def surface_detection(self) -> Ship | None:
@@ -718,8 +713,6 @@ class Escort(Ship):
         self.guarding_target = None
         self.generate_route(self.base.location)
         self.mission = "return"
-
-
 
     def reached_end_of_route(self) -> None:
         if self.mission == "start_patrol":
