@@ -386,12 +386,17 @@ class Agent:
         print(f"{self} has entered {self.base}")
         self.is_returning = False
         self.activated = False
+
+        self.manager.active_agents.remove(self)
+        self.manager.inactive_agents.append(self)
+        self.engaged_in_combat = False
+
         self.remove_guarding_agents()
         self.remove_trailing_agents("Reached base")
-        self.start_maintenance()
         self.entered_base_log()
-
         self.remove_from_plot()
+
+        self.start_maintenance()
 
     def entered_base_log(self) -> None:
         """
@@ -400,10 +405,6 @@ class Agent:
         """
 
     def start_maintenance(self) -> None:
-        self.manager.active_agents.remove(self)
-        self.manager.inactive_agents.append(self)
-        self.engaged_in_combat = False
-
         self.remaining_maintenance_time = self.maintenance_time
 
         if not self.CTL:

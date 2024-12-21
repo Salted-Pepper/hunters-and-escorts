@@ -638,7 +638,7 @@ class Interface(tk.Tk):
                                          validatecommand=(self.register(self.check_is_int), '%P'),
                                          textvariable=number_entry_value)
                 number_entry.place(x=merchant_col_start + 3 * column_width, y=height + j * row_height)
-                number_entry_value.set("5")
+                number_entry_value.set(f"{random.randint(0, 5)}")
                 self.merchant_oob_entries[country][merchant_type] = number_entry_value
 
         tab_canvas.create_window((0, 0), window=tab_frame, anchor="nw")

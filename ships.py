@@ -259,6 +259,8 @@ class Merchant(Ship):
         if self.is_boarded:
             self.manager.active_agents.remove(self)
         else:
+            self.manager.active_agents.remove(self)
+            self.manager.inactive_agents.append(self)
             self.start_maintenance()
 
         self.entered_base_log()
@@ -723,13 +725,16 @@ class Escort(Ship):
             new_location = self.assigned_zone.sample_patrol_location(self.obstacles)
             self.generate_route(new_location)
         elif self.mission == "trailing":
-            if zones.ZONE_L.polygon.check_if_contains_point(self.located_agent.location):
-                self.stop_trailing(f"{self} has passed the median line.")
-            self.mission = "patrolling"
-            self.generate_route(destination=zones.ZONE_L.sample_patrol_location(self.obstacles))
+            if not self.check_target_in_legal_zone():
+                self.stop_trailing(f"{self.located_agent} is in a restricted zone.")
+                self.mission = "patrolling"
+                self.generate_route(destination=self.assigned_zone.sample_patrol_location(self.obstacles))
+            else:
+                self.movement_left_in_turn = 0
         elif self.mission == "guarding":
-            self.stop_guarding()
+            self.movement_left_in_turn = 0
         elif self.mission == "return":
+            self.movement_left_in_turn = 0
             self.enter_base()
 
     def destroyed_log_update(self) -> None:
