@@ -163,6 +163,9 @@ class OTHManager(AgentManager):
 
         self.initiate_bases()
 
+    def __str__(self):
+        return "OTH Manager"
+
     def initiate_bases(self):
         self.bases = [OTH(location=Point(112.70425, 32.33893),
                           direction_point=Point(113.70425, 31.33893),
@@ -213,7 +216,7 @@ class OTHManager(AgentManager):
             raise NotImplementedError(f"Time {time} not implemented.")
 
         if not self.active:
-            for oth in self.active_agents:
+            for oth in self.bases:
                 oth.remove_range_band_from_plot()
 
 

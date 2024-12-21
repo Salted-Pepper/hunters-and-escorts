@@ -323,6 +323,7 @@ class UAV(Aircraft):
     def __init__(self, manager, base: Base, model: str):
         super().__init__(manager, base, model)
         self.service = constants.HUNTER_UAV
+
         self.color = constants.UAV_COLOR
         self.marker_type = "X"
 

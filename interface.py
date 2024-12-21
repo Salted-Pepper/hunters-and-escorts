@@ -117,6 +117,8 @@ class Interface(tk.Tk):
 
         else:
             constants.PLOTTING_MODE = self.do_plot_label.cget('text')
+            for agent in constants.all_agents:
+                agent.update_legal_zones()
 
             for step in range(num_time_steps):
                 self.game.world.time_step()

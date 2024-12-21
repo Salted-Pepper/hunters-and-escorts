@@ -49,6 +49,7 @@ class Agent:
 
         # ----- Movement -----
         self.assigned_zone = None
+        self.legal_zones = []
         self.convoy = None
 
         self.location = base.location
@@ -433,7 +434,7 @@ class Agent:
                 self.stop_trailing("Target Destroyed")
                 return
             # TODO: Check if this is in any of the agents legal zones rather than assigned zone
-            elif not self.assigned_zone.check_if_agent_in_zone(self.located_agent):
+            elif not self.check_target_in_legal_zone():
                 self.stop_trailing("Left area of interest")
                 return
 
@@ -462,6 +463,18 @@ class Agent:
 
         if constants.DEBUG_MODE:
             self.debug()
+
+    def update_legal_zones(self):
+        if self.team == constants.TEAM_CHINA:
+            assignments = zones.zone_assignment_hunter[self.service]
+        elif self.team == constants.TEAM_COALITION:
+            assignments = zones.zone_assignment_coalition[self.service]
+        else:
+            raise ValueError(f"Invalid team {self.team}")
+        self.legal_zones = [zone for zone in assignments.keys() if assignments[zone] > 0]
+
+    def check_target_in_legal_zone(self) -> bool:
+        return any([zone.check_if_agent_in_zone(self.located_agent) for zone in self.legal_zones])
 
     def remove_trailing_agents(self, reason: str) -> None:
         """

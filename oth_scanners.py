@@ -142,7 +142,6 @@ class OTH:
         for agent in agents_to_check:
             self.scanned_polygon.check_if_contains_point(agent.location)
             if self.detected_agent(agent):
-                print(f"Located agent {agent} at ({agent.location.x}, {agent.location.y})")
                 located_agents.append(agent)
         self.located_agents.extend(located_agents)
 
@@ -153,7 +152,6 @@ class OTH:
         :param max_range: Maximum bandwidth for the current timestep
         :return:
         """
-        print(f"{self} calculating Polygon...")
         direction_vector_x_min = self.location.x + self.direction[0] * km_to_latitudinal_distance(min_range,
                                                                                                   self.location.y)
         direction_vector_y_min = self.location.y + self.direction[1] * km_to_longitudinal_distance(min_range)
