@@ -30,6 +30,42 @@ class Ship(Agent):
         super().__init__(manager, base, model)
         self.helicopter = False
 
+    def move_through_route(self):
+        if self.next_point is not None:
+            distance_to_next_point = self.location.distance_to_point(self.next_point)
+
+            distance_travelled = min(self.movement_left_in_turn, distance_to_next_point)
+            self.movement_left_in_turn -= distance_travelled
+            self.remaining_endurance -= distance_travelled
+
+            # Instance 1: We can reach the next point
+            if distance_to_next_point <= distance_travelled:
+                self.last_location = self.next_point
+                self.past_points.append(self.next_point)
+                self.location = copy.deepcopy(self.next_point)
+
+                # Instance 1a: Reached point, getting ready for next point
+                if len(self.remaining_points) > 0:
+                    self.next_point = self.remaining_points.pop(0)
+
+                # Instance 1b: Reached point, was final point on route
+                else:
+                    self.reached_end_of_route()
+                    if constants.DEBUG_MODE:
+                        self.debug()
+                    return
+
+            # Instance 2: We travel towards the next point but do not reach it
+            else:
+                part_of_route = (distance_travelled / distance_to_next_point)
+                new_x = self.location.x + part_of_route * (self.next_point.x - self.location.x)
+                new_y = self.location.y + part_of_route * (self.next_point.y - self.location.y)
+                self.location = Point(new_x, new_y, name=str(self))
+
+                if constants.DEBUG_MODE:
+                    self.debug()
+                return
+
     @abstractmethod
     def surface_detection(self) -> object | None:
         pass
@@ -190,41 +226,6 @@ class Merchant(Ship):
                 agent.stop_trailing("Merchant crossed median line")
         self.update_plot()
 
-    def move_through_route(self) -> None:
-        if self.next_point is not None:
-            distance_to_next_point = self.location.distance_to_point(self.next_point)
-
-            distance_travelled = min(self.movement_left_in_turn, distance_to_next_point)
-            self.movement_left_in_turn -= distance_travelled
-
-            # Instance 1: We can reach the next point
-            if distance_to_next_point <= distance_travelled:
-                self.last_location = self.next_point
-                self.past_points.append(self.next_point)
-                self.location = copy.deepcopy(self.next_point)
-
-                # Instance 1a: Reached point, getting ready for next point
-                if len(self.remaining_points) > 0:
-                    self.next_point = self.remaining_points.pop(0)
-
-                # Instance 1b: Reached point, was final point on route
-                else:
-                    self.reached_end_of_route()
-                    if constants.DEBUG_MODE:
-                        self.debug()
-                    return
-
-            # Instance 2: We travel towards the next point but do not reach it
-            else:
-                part_of_route = (distance_travelled / distance_to_next_point)
-                new_x = self.location.x + part_of_route * (self.next_point.x - self.location.x)
-                new_y = self.location.y + part_of_route * (self.next_point.y - self.location.y)
-                self.location = Point(new_x, new_y, name=str(self))
-
-                if constants.DEBUG_MODE:
-                    self.debug()
-                return
-
     def reached_end_of_route(self) -> None:
         # Case 1a: Reached harbour non-boarded
         if self.location == self.base.location:
@@ -349,6 +350,7 @@ class HunterShip(Ship):
         self.radius = 12
         self.team = constants.TEAM_CHINA
         self.engaged_in_combat = False
+        self.failed_boarding = False
 
         self.color = constants.CHINESE_NAVY_COLOR
         self.marker_type = "D"
@@ -452,43 +454,12 @@ class HunterShip(Ship):
     def take_trailing_action(self) -> None:
         self.update_trail_route()
         self.move_through_route()
-        if self.located_agent is not None and self.allowed_to_attack(self.located_agent) == 1:
-            self.attempt_boarding(self.located_agent)
 
-    def move_through_route(self):
-        if self.next_point is not None:
-            distance_to_next_point = self.location.distance_to_point(self.next_point)
-
-            distance_travelled = min(self.movement_left_in_turn, distance_to_next_point)
-            self.movement_left_in_turn -= distance_travelled
-
-            # Instance 1: We can reach the next point
-            if distance_to_next_point <= distance_travelled:
-                self.last_location = self.next_point
-                self.past_points.append(self.next_point)
-                self.location = copy.deepcopy(self.next_point)
-
-                # Instance 1a: Reached point, getting ready for next point
-                if len(self.remaining_points) > 0:
-                    self.next_point = self.remaining_points.pop(0)
-
-                # Instance 1b: Reached point, was final point on route
-                else:
-                    self.reached_end_of_route()
-                    if constants.DEBUG_MODE:
-                        self.debug()
-                    return
-
-            # Instance 2: We travel towards the next point but do not reach it
+        if self.located_agent is not None and self.allowed_to_attack(self.located_agent):
+            if not self.failed_boarding:
+                self.attempt_boarding()
             else:
-                part_of_route = (distance_travelled / distance_to_next_point)
-                new_x = self.location.x + part_of_route * (self.next_point.x - self.location.x)
-                new_y = self.location.y + part_of_route * (self.next_point.y - self.location.y)
-                self.location = Point(new_x, new_y, name=str(self))
-
-                if constants.DEBUG_MODE:
-                    self.debug()
-                return
+                self.attempt_attack()
 
     def initialize_model(self) -> None:
         information = [row for row in model_info.CN_NAVY_MODELS if row['name'] == self.model][0]
@@ -541,20 +512,19 @@ class HunterShip(Ship):
             constants.interface.update_statistics_and_logs(event_code="deterred",
                                                            text=f"{self} was deterred.")
 
-    def attempt_boarding(self, target: Merchant):
+    def attempt_boarding(self):
         """
         See if Chinese Navy unit is able to board
-        :param target:
         :return:
         """
         # 1 - Check if boarding is allowed in zone
         # 2 - if within 12 km attempt boarding
         # 3 - Check if there's an escort
         # 4 - roll boarding attempt (odds based on description in overleaf page 18)
-        if general_maths.calculate_distance(self.location, target.location) > 12:
-            print(f"{self} is looking to board {target} - but is out of range")
+        if general_maths.calculate_distance(self.location, self.located_agent.location) > 12:
+            print(f"{self} is looking to board {self.located_agent} - but is out of range")
             return
-        elif any([zone.check_if_agent_in_zone(target) for zone in [zones.ZONE_I]]):
+        elif any([zone.check_if_agent_in_zone(self.located_agent) for zone in [zones.ZONE_I]]):
             self.engaged_in_combat = True
             # Board the ship
             success_probability = 0.22
@@ -572,16 +542,17 @@ class HunterShip(Ship):
             # TODO: (Non) Compliance rules
 
             if success_probability > random.uniform(0, 1):
-                print(f"{self} is attempting to board {target} - but failed")
+                logger.debug(f"{self} attempted to board {self.located_agent} - but failed")
                 constants.interface.update_statistics_and_logs(event_code=None,
-                                                               log=f"{self} failed to board {target}.")
+                                                               log=f"{self} failed to board {self.located_agent}.")
                 return
-        print(f"{self} has boarded {target}")
-        target.successful_boarding()
+
+        logger.debug(f"{self} has boarded {self.located_agent}")
+        self.located_agent.successful_boarding()
         self.is_trailing = False
         self.mission = "guarding"
-        self.guarding_target = target
-        self.generate_route(target.location)
+        self.guarding_target = self.located_agent
+        self.generate_route(self.located_agent.location)
 
     def reached_end_of_route(self) -> None:
         if self.mission == "start_patrol":
@@ -748,40 +719,7 @@ class Escort(Ship):
         self.generate_route(self.base.location)
         self.mission = "return"
 
-    def move_through_route(self):
-        if self.next_point is not None:
-            distance_to_next_point = self.location.distance_to_point(self.next_point)
 
-            distance_travelled = min(self.movement_left_in_turn, distance_to_next_point)
-            self.movement_left_in_turn -= distance_travelled
-
-            # Instance 1: We can reach the next point
-            if distance_to_next_point <= distance_travelled:
-                self.last_location = self.next_point
-                self.past_points.append(self.next_point)
-                self.location = copy.deepcopy(self.next_point)
-
-                # Instance 1a: Reached point, getting ready for next point
-                if len(self.remaining_points) > 0:
-                    self.next_point = self.remaining_points.pop(0)
-
-                # Instance 1b: Reached point, was final point on route
-                else:
-                    self.reached_end_of_route()
-                    if constants.DEBUG_MODE:
-                        self.debug()
-                    return
-
-            # Instance 2: We travel towards the next point but do not reach it
-            else:
-                part_of_route = (distance_travelled / distance_to_next_point)
-                new_x = self.location.x + part_of_route * (self.next_point.x - self.location.x)
-                new_y = self.location.y + part_of_route * (self.next_point.y - self.location.y)
-                self.location = Point(new_x, new_y, name=str(self))
-
-                if constants.DEBUG_MODE:
-                    self.debug()
-                return
 
     def reached_end_of_route(self) -> None:
         if self.mission == "start_patrol":

@@ -178,6 +178,7 @@ class Aircraft(Agent):
 
             distance_travelled = min(self.movement_left_in_turn, distance_to_next_point)
             self.movement_left_in_turn -= distance_travelled
+            self.remaining_endurance -= distance_travelled
 
             # Instance 1: We can reach the next point
             if distance_to_next_point <= distance_travelled:

@@ -41,7 +41,7 @@ class Base:
             self.currently_served_agent = None
 
     def finish_maintenance_agent(self):
-        logger.debug(f"Finished maintenance of {self}")
+        logger.debug(f"Finished maintenance of {self.currently_served_agent}")
         self.currently_served_agent.complete_maintenance()
         self.start_serve_next_agent()
 

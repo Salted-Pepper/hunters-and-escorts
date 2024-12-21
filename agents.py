@@ -279,6 +279,13 @@ class Agent:
         else:
             raise ValueError(f"Unknown team - {self.team}")
 
+    def attempt_attack(self):
+        pass
+        # TODO:
+        #  1. Check which weapon will be used
+        #  2. Ensure we are in range to attack the agent
+        #  3. Follow the weapons & ammunition table to roll an outcome of the attack
+
     def reach_and_return(self, location) -> bool:
         """
         Test if agent can travel to the target location and still return to base before endurance runs out.

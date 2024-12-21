@@ -67,7 +67,7 @@ class AgentManager:
         #     self.utilization_rates[model] = 0.5 * (
         #             (agent_of_model.endurance - (2 * min_time_to_travel + min_time_to_trail)) /
         #             (agent_of_model.endurance + agent_of_model.maintenance_time))
-        return 0.15
+        return 0.05
 
     def send_out_to_utilisation(self) -> None:
         rate = self.calculate_utilization_rates()
@@ -249,9 +249,9 @@ class UAVManager(AgentManager):
         for row in model_info.UAV_MODELS:
             if row['team'] == constants.TEAM_CHINA and row['type'] == "UAV":
                 for _ in range(row['numberofagents']):
-                    self.inactive_agents.append(UAV(manager=self,
-                                                    base=self.select_random_base(),
-                                                    model=row['name']))
+                    agent = UAV(manager=self, base=self.select_random_base(), model=row['name'])
+                    self.inactive_agents.append(agent)
+                    constants.all_agents.append(agent)
 
     def send_attacker(self, target) -> None:
         agent_to_respond = self.find_uav_able_to_attack(target)
@@ -315,9 +315,9 @@ class CNManager(AgentManager):
         for row in model_info.CN_NAVY_MODELS:
             if row['team'] == constants.TEAM_CHINA and (row['service'] == 'CCG' or row['service'] == 'MSA'):
                 for _ in range(int(row['numberofagents'])):
-                    self.inactive_agents.append(HunterShip(manager=self,
-                                                           base=self.select_random_base(),
-                                                           model=row['name']))
+                    agent = HunterShip(manager=self, base=self.select_random_base(), model=row['name'])
+                    self.inactive_agents.append(agent)
+                    constants.all_agents.append(agent)
 
     def send_attacker(self, target: Agent):
         agent_to_respond = self.find_ship_able_to_attack(target)
@@ -420,10 +420,9 @@ class MerchantManager(AgentManager):
         selected_option = random.choices(option_list, weights=[option[2] for option in option_list])[0]
         country = selected_option[0]
         merchant_type = selected_option[1]
-        self.active_agents.append(Merchant(manager=self,
-                                           base=self.select_random_base(),
-                                           country=country,
-                                           model=merchant_type))
+        agent = Merchant(manager=self, base=self.select_random_base(), country=country, model=merchant_type)
+        self.active_agents.append(agent)
+        constants.all_agents.append(agent)
 
 
 class EscortManager(AgentManager):

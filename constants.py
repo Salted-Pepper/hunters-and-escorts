@@ -12,6 +12,7 @@ RECEPTOR_PLOT_PARAMETER = "Sea States"
 sub_time_delta = None
 world = None
 interface = None
+all_agents = []
 
 # ---- Naming Conventions ----
 
