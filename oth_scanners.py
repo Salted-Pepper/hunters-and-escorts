@@ -133,7 +133,7 @@ class OTH:
                            for manager in constants.world.managers
                            if manager.team != self.team
                            for agent in manager.active_agents
-                           if not agent.stationed
+                           if agent.activated
                            and not agent.destroyed]
 
         self.scanned_polygon = self.calculate_scanned_polygon(min_range, max_range)

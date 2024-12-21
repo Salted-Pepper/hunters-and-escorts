@@ -216,6 +216,7 @@ class Merchant(Ship):
         self.entry_point = Point(latitude, longitude)
         self.location = copy.deepcopy(self.entry_point)
         logger.debug(f"Merchant {self.agent_id} enters at {self.entry_point}")
+        self.activated = True
 
     def take_turn(self) -> None:
         self.movement_left_in_turn = self.speed_current * constants.world.time_delta
@@ -278,6 +279,7 @@ class Merchant(Ship):
         self.delivered_cargo = True
         self.past_points = []
         self.generate_route(self.entry_point)
+        self.activated = True
 
     def successful_boarding(self):
         """
