@@ -22,7 +22,7 @@ import datetime
 date = datetime.date.today()
 logging.basicConfig(level=logging.DEBUG, filename=os.path.join(os.getcwd(), 'logs/log_agents_' + str(date) + '.log'),
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt="%H:%M")
-logger = logging.getLogger("BASE")
+logger = logging.getLogger("MANAGER")
 logger.setLevel(logging.DEBUG)
 
 
@@ -103,7 +103,6 @@ class AgentManager:
         self.custom_actions()
 
         # 1. Ensure the bases serve (maintain) the agents
-        logger.debug(f"{self} serving agents")
         for base in self.bases:
             base.serve_agents()
 

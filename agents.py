@@ -221,10 +221,11 @@ class Agent:
         :param target:
         :return:
         """
+        self.activated = True
+        self.mission = mission
+
         if mission == "start_patrol":
             self.assigned_zone = zone
-            self.activated = True
-            self.mission = mission
             logger.debug(f"{self} starting patrol in zone {zone}")
             patrol_location = zone.sample_patrol_location(obstacles=self.obstacles)
             self.generate_route(destination=patrol_location)
@@ -232,7 +233,6 @@ class Agent:
         elif mission == "trail":
             if target is None:
                 raise ValueError("Trying to trail with None target")
-
             self.is_trailing = True
             self.located_agent = target
             self.generate_route(destination=target.location)

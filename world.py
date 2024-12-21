@@ -8,7 +8,8 @@ from polygons import Polygon
 from receptors import ReceptorGrid
 import weather_data
 
-from managers import MerchantManager, CNManager, TaiwanEscortManager, JapanEscortManager, USAEscortManager, UAVManager
+from managers import (MerchantManager, CNManager, TaiwanEscortManager, JapanEscortManager, USAEscortManager,
+                      UAVManager, OTHManager)
 
 # Logging
 import datetime
@@ -78,13 +79,15 @@ class World:
         # ----------------------------------------------
 
         # ----- Managers -----
+        self.MerchantManager = MerchantManager()
+        self.OTHManager = OTHManager()
         self.CNManager = CNManager()
         self.TaiwanEscortManager = TaiwanEscortManager()
         self.JapanEscortManager = JapanEscortManager()
         self.USAEscortManager = USAEscortManager()
         self.UAVManager = UAVManager()
-        self.MerchantManager = MerchantManager()
         self.managers = [self.MerchantManager,
+                         self.OTHManager,
                          self.CNManager,
                          self.TaiwanEscortManager,
                          self.JapanEscortManager,
