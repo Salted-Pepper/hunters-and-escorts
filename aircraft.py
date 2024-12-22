@@ -11,6 +11,7 @@ import constants
 import model_info
 import zones
 from zones import Zone
+import missions
 
 import copy
 import math
@@ -91,15 +92,15 @@ class Aircraft(Agent):
         i = 0
         while self.movement_left_in_turn > 0:
             if not (self in self.manager.active_agents):
-                print(f"{self} - {self.mission}")
+                logger.warning(f"Inactive unit: {self} - on {self.mission}")
 
             if i > 1000:
-                raise TimeoutError(f"")
+                raise TimeoutError(f"{self} failed to converge - on {self.mission}")
 
-            if self.mission == "start_patrol":
+            if self.mission == missions.START_PATROL:
                 self.move_through_route()
 
-            elif self.mission == "trail":
+            elif self.mission == missions.TRAIL:
                 self.update_trail_route()
                 self.move_through_route()
                 if self.located_agent is not None:
@@ -107,11 +108,11 @@ class Aircraft(Agent):
                         self.movement_left_in_turn = 0
                     self.take_action_on_agent()
 
-            elif self.mission == "patrol":
+            elif self.mission == missions.PATROL:
                 self.move_through_route()
                 self.surface_detection()
 
-            elif self.mission == "return":
+            elif self.mission == missions.RETURN:
                 self.move_through_route()
 
             if not (self in self.manager.active_agents):
@@ -119,9 +120,10 @@ class Aircraft(Agent):
 
         self.update_plot()
 
-    def stop_trailing(self, reason: str) -> None:
+    def stop_trailing(self, reason: str, new_mission: str = missions.PATROL) -> None:
         """
         Makes the agent stop trailing any agent it is trailing.
+        :param new_mission: Mission to continue with once stopped trailing
         :param reason: String describing why the trailing was aborted
         :return:
         """
@@ -131,7 +133,7 @@ class Aircraft(Agent):
 
         self.called_in_attacker = False
         self.is_trailing = False
-        self.mission = "patrol"
+        self.mission = new_mission
         logger.debug(f"{self} stopped trailing {self.located_agent} - {reason}")
 
         self.speed_current = self.speed_cruising
@@ -304,14 +306,14 @@ class Aircraft(Agent):
         return probability
 
     def reached_end_of_route(self) -> None:
-        if self.mission == "start_patrol":
-            self.mission = "patrol"
-        if self.mission == "patrol":
+        if self.mission == missions.START_PATROL:
+            self.mission = missions.PATROL
+        if self.mission == missions.PATROL:
             new_location = self.assigned_zone.sample_patrol_location(self.obstacles + [constants.world.china_polygon])
             self.generate_route(new_location)
-        elif self.mission == "trailing":
+        elif self.mission == missions.TRAIL:
             self.movement_left_in_turn = 0
-        elif self.mission == "return":
+        elif self.mission == missions.RETURN:
             self.movement_left_in_turn = 0
             self.enter_base()
 
@@ -328,7 +330,7 @@ class UAV(Aircraft):
         self.marker_type = "X"
 
     def __str__(self):
-        if self.mission == "patrolling":
+        if self.mission == missions.PATROL:
             return f"u{self.agent_id}p"
         elif self.is_returning:
             return f"u{self.agent_id}r"

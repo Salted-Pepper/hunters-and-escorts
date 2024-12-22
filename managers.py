@@ -11,6 +11,7 @@ import constants as cs
 from bases import Airbase, Harbour
 from agents import Agent
 import model_info
+import missions
 
 from aircraft import UAV
 from ships import Merchant, HunterShip, TaiwanEscort, JapanEscort, USEscort
@@ -127,7 +128,7 @@ class AgentManager:
             zone_assignment = zones.zone_assignment_hunter
             zone_probabilities = zone_assignment[agent.service]
             zone = np.random.choice(list(zone_probabilities.keys()), p=list(zone_probabilities.values()))
-            return "start_patrol", zone
+            return missions.START_PATROL, zone
 
         elif self.team == constants.TEAM_COALITION:
             agent = random.choice(self.inactive_agents)
@@ -136,7 +137,7 @@ class AgentManager:
             zone_assignment = zones.zone_assignment_coalition
             zone_probabilities = zone_assignment[agent.service]
             zone = np.random.choice(list(zone_probabilities.keys()), p=list(zone_probabilities.values()))
-            return "start_patrol", zone
+            return missions.START_PATROL, zone
 
         else:
             raise ValueError(f"Invalid Team {self.team}")
@@ -260,11 +261,11 @@ class UAVManager(AgentManager):
         if agent_to_respond is None:
             return
 
-        print(f"sending out {agent_to_respond} to attack {target} - {agent_to_respond.able_to_attack=}")
+        logger.debug(f"sending out {agent_to_respond} to attack {target} - {agent_to_respond.able_to_attack=}")
         if not agent_to_respond.activated:
             self.inactive_agents.remove(agent_to_respond)
             self.active_agents.append(agent_to_respond)
-            agent_to_respond.activate(mission="trail",
+            agent_to_respond.activate(mission=missions.TRAIL,
                                       target=target)
         else:
             agent_to_respond.start_trailing(target)
@@ -272,8 +273,11 @@ class UAVManager(AgentManager):
                                                        log=f"UAV Detected {target}, sending {agent_to_respond}")
 
     def find_uav_able_to_attack(self, target: Agent) -> UAV | None:
-        close_active_agents = [agent for agent in self.active_agents if
-                               agent.able_to_attack and not agent.is_returning and agent.surf_ammo_current > 0]
+        close_active_agents = [agent for agent in self.active_agents
+                               if agent.able_to_attack
+                               and not agent.is_returning
+                               and not agent.is_trailing
+                               and agent.surf_ammo_current > 0]
         # close_active_agents = sorted(close_active_agents,
         #                              key=lambda x: general_maths.calculate_distance(x.location, target.location))
         if len(close_active_agents) > 0:
@@ -326,7 +330,7 @@ class CNManager(AgentManager):
         if not agent_to_respond.activated:
             self.inactive_agents.remove(agent_to_respond)
             self.active_agents.append(agent_to_respond)
-            agent_to_respond.activate(mission="trail",
+            agent_to_respond.activate(mission=missions.TRAIL,
                                       target=target)
         else:
             agent_to_respond.start_trailing(target)
@@ -334,7 +338,10 @@ class CNManager(AgentManager):
                                                        log=f"UAV Detected {target}, sending {agent_to_respond}")
 
     def find_ship_able_to_attack(self, target: Agent) -> HunterShip:
-        close_active_agents = [agent for agent in self.active_agents if agent.able_to_attack and not agent.is_returning]
+        close_active_agents = [agent for agent in self.active_agents
+                               if agent.able_to_attack
+                               and not agent.is_returning
+                               and not agent.is_trailing]
         # close_active_agents = sorted(close_active_agents,
         #                              key=lambda x: general_maths.calculate_distance(x.location, target.location))
         if len(close_active_agents) > 0:
@@ -415,7 +422,7 @@ class MerchantManager(AgentManager):
 
         # Otherwise randomly sample if we send
         if probability_of_entrance % 1 > random.uniform(0, 1):
-            print(f"Creating new merchant")
+            logger.debug(f"Creating new merchant")
             self.create_new_merchant(option_list)
 
     def create_new_merchant(self, option_list):

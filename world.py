@@ -164,7 +164,7 @@ class World:
             return
 
     def time_step(self) -> None:
-        print(f"Starting iteration {self.world_time: .3f}")
+        logger.debug(f"Starting iteration {self.world_time: .3f}")
         self.world_time += self.time_delta
         self.time_of_day = self.world_time % 24
 
@@ -178,5 +178,5 @@ class World:
 
         self.plot_world_update()
 
-        logger.debug(f"End of iteration {self.world_time: .3f} \n")
+        # logger.debug(f"End of iteration {self.world_time: .3f} \n")
 

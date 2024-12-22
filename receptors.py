@@ -32,7 +32,7 @@ RECEPTOR_RADIUS_MULTIPLIER = 10
 
 class Receptor:
     def __init__(self, x, y, in_polygon=False) -> None:
-
+        self.visible = True
         if in_polygon:
             self.coalition_pheromones = 100
             self.china_pheromones = 100
@@ -68,6 +68,7 @@ class Receptor:
             return axes
 
         if constants.RECEPTOR_PLOT_PARAMETER == 'None':
+            self.visible = False
             return axes
 
         elif constants.RECEPTOR_PLOT_PARAMETER == "Coalition Pheromones":
@@ -90,6 +91,16 @@ class Receptor:
             return
         if not self.decay:
             return
+
+        if constants.RECEPTOR_PLOT_PARAMETER == "None":
+            if self.visible:
+                self.visible = False
+                self.patch.set_visible(False)
+        else:
+            if not self.visible:
+                self.visible = True
+                self.patch.set_visible(True)
+
         if constants.RECEPTOR_PLOT_PARAMETER == "coalition_pheromones":
             self.patch.set_facecolor(cmap(self.coalition_pheromones / 100))
             self.patch.set_edgecolor(cmap(self.coalition_pheromones / 100))
@@ -99,6 +110,7 @@ class Receptor:
         elif constants.RECEPTOR_PLOT_PARAMETER == "sea_states":
             self.patch.set_facecolor(cmap(self.sea_state / 6))
             self.patch.set_edgecolor(cmap(self.sea_state / 6))
+
         return axes
 
     def in_range_of_point(self, point: Point, radius: float) -> bool:
@@ -256,7 +268,6 @@ class ReceptorGrid:
                 selected_receptor = receptor
 
         if selected_receptor is None:
-            print(f"{potential_receptors=}, {selected_receptor=}, {dist=}")
             point.add_point_to_plot(constants.axes_plot, color="purple")
             radius_patch = matplotlib.patches.Circle((point.x, point.y),
                                                      radius=radius,

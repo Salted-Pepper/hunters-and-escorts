@@ -6,13 +6,12 @@ from abc import ABC, abstractmethod
 
 import general_maths
 import constants
-import constant_coords
 import model_info
 from agents import Agent
 from bases import Base
 from points import Point
 import zones
-from zones import Zone
+import missions
 
 import os
 import logging
@@ -250,7 +249,7 @@ class Merchant(Ship):
                 self.generate_route(self.base.location)
 
     def enter_base(self) -> None:
-        print(f"{self} has entered {self.base}")
+        logger.debug(f"{self} has entered {self.base} - trailing agents: {[str(a) for a in self.trailing_agents]}")
         self.is_returning = False
         self.activated = False
         self.remove_guarding_agents()
@@ -299,7 +298,7 @@ class Merchant(Ship):
         self.color = constants.CHINESE_NAVY_COLOR
 
         for agent in self.trailing_agents:
-            print(f"{agent} stopped trailing as {self} got boarded")
+            logger.debug(f"{agent} stopped trailing as {self} got boarded")
             agent.stop_trailing(reason="Ship was boarded")
 
     def successful_counter_boarding(self):
@@ -362,15 +361,15 @@ class HunterShip(Ship):
         self.initialize_model()
 
     def __str__(self):
-        if self.mission == "start_patrol":
+        if self.mission == missions.START_PATROL:
             return f"h{self.agent_id}s{self.assigned_zone}"
-        elif self.mission == "patrol":
+        elif self.mission == missions.PATROL:
             return f"h{self.agent_id}p{self.assigned_zone}"
-        elif self.mission == "trail":
+        elif self.mission == missions.TRAIL:
             return f"h{self.agent_id}t{self.assigned_zone}"
-        elif self.mission == "guarding":
+        elif self.mission == missions.GUARDING:
             return f"h{self.agent_id}g{self.assigned_zone}"
-        elif self.mission == "return":
+        elif self.mission == missions.RETURN:
             return f"h{self.agent_id}r{self.assigned_zone}"
         else:
             return f"h{self.agent_id}"
@@ -429,11 +428,11 @@ class HunterShip(Ship):
             i += 1
             if i > 100:
                 raise TimeoutError(f"{self} not able to spend movement during mission - {self.mission}")
-            if self.mission == "start_patrol":
+            if self.mission == missions.START_PATROL:
                 self.move_through_route()
-            elif self.mission == "trail":
+            elif self.mission == missions.TRAIL:
                 self.take_trailing_action()
-            elif self.mission == "patrol":
+            elif self.mission == missions.PATROL:
                 self.move_through_route()
                 target = self.surface_detection()
                 if target is not None and isinstance(target, Merchant):
@@ -442,7 +441,7 @@ class HunterShip(Ship):
                     # TODO: treat non-merchant targets - consider redoing finding and treating targets.
                     #  Current issue: might find non-eligible target before eligible one
                     pass
-            elif self.mission == "guarding":
+            elif self.mission == missions.GUARDING:
                 self.update_trail_route()
                 self.move_through_route()
                 if self.location == self.base.location:
@@ -452,7 +451,7 @@ class HunterShip(Ship):
                     self.movement_left_in_turn = 0
                 elif not self.guarding_target.activated:
                     self.return_to_base()
-            elif self.mission == "return":
+            elif self.mission == missions.RETURN:
                 self.move_through_route()
         self.update_plot()
 
@@ -527,7 +526,7 @@ class HunterShip(Ship):
         # 3 - Check if there's an escort
         # 4 - roll boarding attempt (odds based on description in overleaf page 18)
         if general_maths.calculate_distance(self.location, self.located_agent.location) > 12:
-            print(f"{self} is looking to board {self.located_agent} - but is out of range")
+            logger.debug(f"{self} is looking to board {self.located_agent} - but is out of range")
             return
         elif any([zone.check_if_agent_in_zone(self.located_agent) for zone in [zones.ZONE_I]]):
             self.engaged_in_combat = True
@@ -554,24 +553,23 @@ class HunterShip(Ship):
 
         logger.debug(f"{self} has boarded {self.located_agent}")
         self.guarding_target = self.located_agent
-        self.is_trailing = False
-        self.mission = "guarding"
         self.located_agent.successful_boarding()
-        self.generate_route(self.located_agent.location)
+        self.mission = missions.GUARDING
+        self.generate_route(self.guarding_target.location)
 
     def reached_end_of_route(self) -> None:
-        if self.mission == "start_patrol":
-            self.mission = "patrol"
+        if self.mission == missions.START_PATROL:
+            self.mission = missions.PATROL
 
-        if self.mission == "patrol":
+        if self.mission == missions.PATROL:
             new_location = self.assigned_zone.sample_patrol_location(self.obstacles)
             self.generate_route(new_location)
-        elif self.mission == "trailing":
+        elif self.mission == missions.TRAIL:
             self.movement_left_in_turn = 0
-        elif self.mission == "return":
+        elif self.mission == missions.RETURN:
             self.movement_left_in_turn = 0
             self.enter_base()
-        elif self.mission == "guarding":
+        elif self.mission == missions.GUARDING:
             self.movement_left_in_turn = 0
 
 
@@ -587,13 +585,13 @@ class Escort(Ship):
     def __str__(self):
         if self.is_trailing:
             return f"e{self.agent_id}t{self.assigned_zone}"
-        elif self.mission == "guarding":
+        elif self.mission == missions.GUARDING:
             return f"e{self.agent_id}g{self.assigned_zone}"
-        elif self.mission == "start_patrol":
+        elif self.mission == missions.START_PATROL:
             return f"e{self.agent_id}s{self.assigned_zone}"
-        elif self.mission == "patrol":
+        elif self.mission == missions.PATROL:
             return f"e{self.agent_id}p{self.assigned_zone}"
-        elif self.mission == "return":
+        elif self.mission == missions.RETURN:
             return f"e{self.agent_id}r{self.assigned_zone}"
         else:
             return f"e{self.agent_id}"
@@ -662,9 +660,9 @@ class Escort(Ship):
             i += 1
             if i > 100:
                 raise TimeoutError()
-            if self.mission == "start_patrol":
+            if self.mission == missions.START_PATROL:
                 self.move_through_route()
-            elif self.mission == "trail":
+            elif self.mission == missions.TRAIL:
                 if zones.ZONE_L.check_if_agent_in_zone(self.located_agent):
                     self.stop_trailing("Merchant passed median line")
                     continue
@@ -672,7 +670,7 @@ class Escort(Ship):
                 self.move_through_route()
                 if isinstance(self.located_agent, Merchant):
                     self.counter_board(self.located_agent)
-            elif self.mission == "patrol":
+            elif self.mission == missions.PATROL:
                 self.move_through_route()
                 if constants.COALITION_SELECTED_LEVEL > 1:
                     target = self.surface_detection()
@@ -684,9 +682,9 @@ class Escort(Ship):
                         target.return_to_base()
                     else:
                         continue
-            elif self.mission == "guarding":
+            elif self.mission == missions.GUARDING:
                 self.continue_guarding()
-            elif self.mission == "return":
+            elif self.mission == missions.RETURN:
                 self.move_through_route()
         self.update_plot()
 
@@ -709,31 +707,30 @@ class Escort(Ship):
 
     def start_guarding(self, target: Merchant) -> None:
         self.guarding_target = target
-        self.mission = "guarding"
+        self.mission = missions.GUARDING
         self.generate_route(target.location)
 
     def stop_guarding(self) -> None:
         logger.debug(f"{self} stopped guarding {self.guarding_target}")
         self.guarding_target = None
         self.generate_route(self.base.location)
-        self.mission = "return"
+        self.mission = missions.RETURN
 
     def reached_end_of_route(self) -> None:
-        if self.mission == "start_patrol":
-            self.mission = "patrol"
-        if self.mission == "patrol":
+        if self.mission == missions.START_PATROL:
+            self.mission = missions.PATROL
+        if self.mission == missions.PATROL:
             new_location = self.assigned_zone.sample_patrol_location(self.obstacles)
             self.generate_route(new_location)
-        elif self.mission == "trailing":
+        elif self.mission == missions.TRAIL:
             if not self.check_target_in_legal_zone():
-                self.stop_trailing(f"{self.located_agent} is in a restricted zone.")
-                self.mission = "patrolling"
+                self.stop_trailing(f"{self.located_agent} is in a restricted zone.", new_mission=missions.PATROL)
                 self.generate_route(destination=self.assigned_zone.sample_patrol_location(self.obstacles))
             else:
                 self.movement_left_in_turn = 0
-        elif self.mission == "guarding":
+        elif self.mission == missions.GUARDING:
             self.movement_left_in_turn = 0
-        elif self.mission == "return":
+        elif self.mission == missions.RETURN:
             self.movement_left_in_turn = 0
             self.enter_base()
 

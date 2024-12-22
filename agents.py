@@ -1,4 +1,5 @@
 import constants
+import missions
 import zones
 from points import Point
 from bases import Base
@@ -130,7 +131,7 @@ class Agent:
         except ValueError:
             self.location.add_point_to_plot(constants.world.ax, color="purple")
             destination.add_point_to_plot(constants.world.ax, color="violet")
-            print(f"Failed to create route from {self.location} to {destination}")
+            logger.error(f"Failed to create route from {self.location} to {destination}")
         self.past_points.append(self.route.points[0])
         self.last_location = self.location
         self.next_point = self.route.points[1]
@@ -225,18 +226,19 @@ class Agent:
         self.activated = True
         self.mission = mission
 
-        if mission == "start_patrol":
+        if mission == missions.START_PATROL:
             self.assigned_zone = zone
             logger.debug(f"{self} starting patrol in zone {zone}")
             patrol_location = zone.sample_patrol_location(obstacles=self.obstacles)
             self.generate_route(destination=patrol_location)
 
-        elif mission == "trail":
+        elif mission == missions.TRAIL:
             if target is None:
                 raise ValueError("Trying to trail with None target")
-            self.is_trailing = True
-            self.located_agent = target
-            self.generate_route(destination=target.location)
+            self.start_trailing(target)
+            # self.is_trailing = True
+            # self.located_agent = target
+            # self.generate_route(destination=target.location)
             logger.debug(f"{self} set to target {target}")
 
         else:
@@ -328,32 +330,34 @@ class Agent:
             return
 
         self.is_trailing = True
-        self.mission = "trail"
+        self.mission = missions.TRAIL
+        if self in agent.trailing_agents:
+            raise ValueError(f"Duplicate trailing for {self} to {agent}")
         agent.trailing_agents.append(self)
         self.located_agent = agent
         self.update_trail_route()
-        print(f"{self} is now trailing {agent}")
+        logger.debug(f"{self} is now trailing {agent}")
 
         self.speed_current = self.speed_max
 
-    def stop_trailing(self, reason: str) -> None:
+    def stop_trailing(self, reason: str, new_mission: str = missions.PATROL) -> None:
         """
         Makes the agent stop trailing any agent it is trailing.
+        :param new_mission: Mission to continue with once stopped trailing
         :param reason: String describing why the trailing was aborted
         :return:
         """
-        if not self.is_trailing and self.mission != "trail":
-            logger.error(f"Agent {self} was not trailing - ordered to stop trailing {self.located_agent}")
-            return
+        if not self.is_trailing and self.mission != missions.TRAIL:
+            logger.error(f"Agent {self} was not trailing - ordered to stop trailing {self.located_agent} - "
+                         f"{self.mission}")
 
         self.is_trailing = False
-        self.mission = "patrol"
+        self.mission = new_mission
         logger.debug(f"{self} stopped trailing {self.located_agent} - {reason}")
 
         self.speed_current = self.speed_cruising
-
-        if self in self.located_agent.trailing_agents:
-            self.located_agent.trailing_agents.remove(self)
+        # print(f"Removing {self} from {self.located_agent} - {[str(a) for a in self.located_agent.trailing_agents]}")
+        self.located_agent.trailing_agents.remove(self)
         self.located_agent = None
 
         self.release_support_agents()
@@ -373,17 +377,18 @@ class Agent:
         self.support_agents = []
 
     def return_to_base(self) -> None:
-        self.mission = "return"
+        self.mission = missions.RETURN
         self.generate_route(destination=self.base.location)
 
         self.assigned_zone = None
 
+        if self.is_trailing:
+            self.stop_trailing("Returning to base", new_mission=self.mission)
         self.is_returning = True
-        self.is_trailing = False
         self.is_patrolling = False
 
     def enter_base(self) -> None:
-        print(f"{self} has entered {self.base}")
+        logger.debug(f"{self} has entered {self.base}")
         self.is_returning = False
         self.activated = False
 
@@ -411,7 +416,7 @@ class Agent:
             self.base.maintenance_queue.append(self)
 
     def complete_maintenance(self):
-        print(f"{self} completed maintenance")
+        logger.debug(f"{self} completed maintenance")
         self.remaining_endurance = self.endurance
         self.air_ammo_current = self.air_ammo_max
         self.surf_ammo_current = self.sub_ammo_max
@@ -425,13 +430,12 @@ class Agent:
         """
         if self.located_agent is not None and self.is_trailing:
             if not self.located_agent.activated:
-                logger.debug(f"Agent {self} is forced to stop chasing {self.located_agent} "
-                             f"left area of interest.")
-                self.stop_trailing("Target Reached Safe Zone")
+                logger.debug(f"Agent {self} (Located {self.located_agent}) "
+                             f"is forced to stop chasing {self.located_agent} left area of interest.")
+                self.stop_trailing("Target Reached Safe Zone", new_mission="trail")
                 return
             elif self.located_agent.destroyed:
-                logger.debug(f"Agent {self} has stopped chasing {self.located_agent} "
-                             f"- was destroyed.")
+                logger.debug(f"Agent {self} has stopped chasing {self.located_agent} - was destroyed.")
                 self.stop_trailing("Target Destroyed")
                 return
             # TODO: Check if this is in any of the agents legal zones rather than assigned zone
@@ -448,15 +452,14 @@ class Agent:
 
             self.generate_route(destination=self.located_agent.location)
 
-        elif self.guarding_target is not None and self.mission == "guarding":
+        elif self.guarding_target is not None and self.mission == missions.GUARDING:
             if not self.guarding_target.activated or self.guarding_target.destroyed:
                 self.stop_guarding()
                 return
             for polygon in self.obstacles:
                 # TODO: Also make this check based on legal zones
-                if polygon.check_if_contains_point(self.located_agent.location):
-                    logger.debug(
-                        f"Agent {self} is forced to stop guarding {self.located_agent} - left allowed zone.")
+                if polygon.check_if_contains_point(self.guarding_target.location):
+                    logger.debug(f"Agent {self} is forced to stop guarding {self.guarding_target} - left allowed zone.")
                     self.stop_guarding()
                     return
 
@@ -466,6 +469,9 @@ class Agent:
             self.debug()
 
     def update_legal_zones(self):
+        if "MERCHANT" in self.service:
+            self.legal_zones = zones.ZONE_A
+            return
         if self.team == constants.TEAM_CHINA:
             assignments = zones.zone_assignment_hunter[self.service]
         elif self.team == constants.TEAM_COALITION:
